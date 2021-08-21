@@ -1,49 +1,43 @@
-import json
-import pandas as pd
 import numpy as np
-import smartsifter as ss
 import matplotlib.pyplot as plt
+
 from smartsifter import SDEM
 from sklearn.model_selection import train_test_split
+from get_historicial import History
 
-close_list = []
+class ModelData():
+    def __init__(self, data):
+        self.data = data
+        self.sdem = SDEM(1/2, 1.)
+        self.prices = np.array(list(data.keys()))
+        self.dates = np.array(list(data.values()))
 
-with open('./aapl_min_data.json', 'r') as f:
-    data = json.load(f)
-    for v in data['AAPL']:
-        close_list.append(v['c'])
+    def train_and_fit(self):
+        self.price_train = self.prices[:int(len(self.prices) * 0.7)]
+        self.price_test = self.prices[int(len(self.prices) * 0.3):]
+        self.date_train = self.dates[:int(len(self.dates) * 0.7)]
+        self.date_test = self.dates[int(len(self.dates) * 0.3):]
+        self.sdem.fit(self.price_train.reshape(-1,1))
 
-close = np.array(close_list)
+    def plot_data(self):
+        fig, ax = plt.subplots(2,1)
+        fig.tight_layout()
+        ax[1].set_title('Scores')
+        ax[0].set_title('Data')
+        scores = []
+        for price in self.price_test:
+            price = price.reshape(1,-1)
+            self.sdem.update(price)
+            scores.append(-self.sdem.score_samples(price))
+            ax[0].plot(self.price_test)
+            ax[1].plot(scores)
+            plt.pause(0.01)
 
-days = [i for i in range(len(close))]
-days = np.array(days).reshape(-1,1)
+        plt.show()
 
-x_train = np.array(close[:int(len(close) * 0.7)])
-x_test = np.array(close[int(len(close) * 0.3):])
-#x_test = np.array(close)
+aapl_hist = History(symbol='AAPL', timeframe='1Min')
+data = aapl_hist.get_history()
 
-sdem = SDEM(1/2, 1.)
-sdem.fit(x_train.reshape(-1,1))
-
-scores = []
-
-fig, ax = plt.subplots(2,1)
-fig.tight_layout()
-ax[1].set_title('Scores')
-ax[0].set_title('Data')
-
-for count, x in enumerate(x_test):
-  x = x.reshape(1,-1)
-  sdem.update(x)
-  scores.append(-sdem.score_samples(x))
-  if sdem.score_samples(x) < -3.40:
-    print('found anomoly at ' + str(count) + ' with a score of ' + str(sdem.score_samples(x)))
-
-  ax[0].plot(x_test)
-  ax[1].plot(scores)
-  plt.pause(0.01)
-
-plt.show()
-
-
-
+model = ModelData(data)
+model.train_and_fit()
+model.plot_data()

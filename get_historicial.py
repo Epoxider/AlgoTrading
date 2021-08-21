@@ -1,23 +1,46 @@
-import json, requests, datetime
+import json, datetime
+import numpy as np
 import alpaca_trade_api as tradeapi
+from numpy.core.defchararray import array
+class History():
+    
+    def __init__(self, symbol, timeframe):
+        self.url = 'https://data.alpaca.markets/v1/bars'
+        self.symbol = symbol
+        self.timeframe = timeframe
+        self.todays_date = datetime.datetime.now(datetime.timezone.utc)
+        self.start_date = self.todays_date - datetime.timedelta(days=6)
+        self.todays_date = self.todays_date.isoformat()
+        self.start_date = self.start_date.isoformat()
 
-#url = 'https://data.alpaca.markets/v2/stocks/AAPL/trades'
-url = 'https://data.alpaca.markets/v1/bars'
+        with open("keys.json", "r") as f:
+            key_dict = json.loads(f.readline().strip())
 
-with open("keys.json", "r") as f:
-    key_dict = json.loads(f.readline().strip())
+        api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], self.url, api_version='v2')
+        self.barset = api.get_barset(symbols=self.symbol, timeframe='1Min', start=self.start_date, end=self.todays_date, limit=1000)
+    
+    def get_history(self):
 
-api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], url, api_version='v2')
+        hist_dict = {}
+        for v in self.barset[self.symbol]:
+            close = float(v.c)
+            hist_dict[close] = v.t.date().strftime('%Y-%m-%d')
 
-todays_date = datetime.datetime.now(datetime.timezone.utc)
-start_date = todays_date - datetime.timedelta(days=6)
+        return hist_dict
 
-todays_date = todays_date.isoformat()
-start_date = start_date.isoformat()
+    def write_history(self):
 
-barset = api.get_barset(symbols='AAPL', timeframe='1Min', start=start_date, end=todays_date, limit=1000)
+        with open('./aapl_min_data.json', 'a') as f:
+            json.dump(self.barset._raw, f)
 
-#with open('./aapl_min_data.json', 'a') as f:
-#    barset_json = json.dump(barset._raw, f)
-
-[print(i.c) for i in barset['AAPL']]
+'''
+h = History('AAPL', '1Min')
+d = h.get_history()
+#print(list(d.values())[0])
+counter = 0
+for i in d.values():
+    print(i.date())
+    counter += 1
+    if counter > 2:
+        break
+'''
