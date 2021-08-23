@@ -2,15 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from smartsifter import SDEM
-from sklearn.model_selection import train_test_split
 from get_historicial import History
 
 class ModelData():
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, symbol):
+        self.data = History(symbol=symbol, timeframe=('1Min')).get_history()
         self.sdem = SDEM(1/2, 1.)
-        self.prices = np.array(list(data.keys()))
-        self.dates = np.array(list(data.values()))
+        self.prices = np.array(list(self.data.keys()))
+        self.dates = np.array(list(self.data.values()))
+        self.train_and_fit()
 
     def train_and_fit(self):
         self.price_train = self.prices[:int(len(self.prices) * 0.7)]
@@ -35,9 +35,9 @@ class ModelData():
 
         plt.show()
 
-aapl_hist = History(symbol='AAPL', timeframe='1Min')
-data = aapl_hist.get_history()
+#aapl_hist = History(symbol='AAPL', timeframe='1Min')
+#data = aapl_hist.get_history()
 
-model = ModelData(data)
+model = ModelData('AAPL')
 model.train_and_fit()
 model.plot_data()

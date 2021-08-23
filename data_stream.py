@@ -1,18 +1,15 @@
-import os, sys, time, json, requests
+import json
 import alpaca_trade_api as tradeapi
 
-
 base_url = 'https://paper-api.alpaca.markets'
-
 
 with open("keys.json", "r") as f:
     key_dict = json.loads(f.readline().strip())
 
-api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], base_url, api_version='v2')
-
+#api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], base_url, api_version='v2')
 #print(api.get_account())
 
-appl_q = []
+list_of_price_queues = []
 
 conn = tradeapi.StreamConn(
         base_url=base_url,
@@ -27,16 +24,15 @@ async def on_account_updates(conn, channel, account):
 
 @conn.on(r'^AM.AAPL$')
 async def on_minute_bars(conn, channel, data):
-    #print(data.close)
-    #appl_q.append(data['close'])
-    print('Data: ', data.close, ' Average is ' )#str(sum(appl_q)/len(appl_q)))
+    print('Data: ', data.close)
+    [q.append(data) for q in list_of_price_queues]
 
-'''
-@conn.on(r'^AM.TSLA$')
-async def on_minute_bars(conn, channel, data):
-    print('tick')
-    print(data)
-'''
 
-conn.run(['AM.AAPL'])
-#conn.run(['A.*', 'AM.*', 'account_updates'])
+class Data_Stream():
+    def __init__(self, symbol):
+        self.symbol = 'AM.%s' %(symbol)
+        global list_of_price_queues
+        conn.run([self.symbol])
+
+    def get_stream_data(self):
+        return list_of_price_queues
