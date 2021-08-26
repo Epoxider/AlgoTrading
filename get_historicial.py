@@ -17,30 +17,16 @@ class History():
             key_dict = json.loads(f.readline().strip())
 
         api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], self.url, api_version='v2')
-        self.barset = api.get_barset(symbols=self.symbol, timeframe='1Min', start=self.start_date, end=self.todays_date, limit=1000)
+        self.min_barset = api.get_barset(symbols=self.symbol, timeframe=self.timeframe, start=self.start_date, end=self.todays_date, limit=1000)
     
     def get_history(self):
-
         hist_dict = {}
-        for v in self.barset[self.symbol]:
+        for v in self.min_barset[self.symbol]:
             close = float(v.c)
             hist_dict[close] = v.t.date().strftime('%Y-%m-%d')
 
         return hist_dict
 
     def write_history(self):
-
         with open('./aapl_min_data.json', 'a') as f:
-            json.dump(self.barset._raw, f)
-
-'''
-h = History('AAPL', '1Min')
-d = h.get_history()
-#print(list(d.values())[0])
-counter = 0
-for i in d.values():
-    print(i.date())
-    counter += 1
-    if counter > 2:
-        break
-'''
+            json.dump(self.min_barset._raw, f)

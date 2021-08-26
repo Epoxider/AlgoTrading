@@ -22,11 +22,10 @@ conn = tradeapi.StreamConn(
 async def on_account_updates(conn, channel, account):
     print('account', account)
 
-@conn.on(r'^AM.AAPL$')
+@conn.on(r'^AM$')
 async def on_minute_bars(conn, channel, data):
     print('Data: ', data.close)
     [q.append(data) for q in list_of_price_queues]
-
 
 class Data_Stream():
     def __init__(self, symbol):
