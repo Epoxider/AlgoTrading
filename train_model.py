@@ -8,14 +8,17 @@ from data_stream import Data_Stream
 
 class Algorithm():
     def __init__(self, symbol):
-        self.data = Data_Stream().get_stream_data()
+        self.data = Data_Stream(symbol).get_stream_data()
         self.hist_min_data = History(symbol=symbol, timeframe=('1Min')).get_history()
-        self.hist_day_data = History(symbol=symbol, timeframe=('1Day')).get_history()
-        self.hist_prices_list = list(self.data.keys())
-        self.hist_dates_list = list(self.data.values())
+        self.hist_day_data = History(symbol=symbol, timeframe=('day')).get_history()
+        #self.hist_prices_list = list(self.data.keys())
+        #self.hist_dates_list = list(self.data.values())
 
-        self.hist_prices = np.array(list(self.data.keys()))
-        self.hist_dates = np.array(list(self.data.values()))
+        #self.hist_prices = np.array(list(self.data.keys()))
+        #self.hist_dates = np.array(list(self.data.values()))
+
+    def Print_Data_Stream(self):
+        print(self.data)
 
     def Calc_MACD(self, data):
         short_ema = []
@@ -83,4 +86,5 @@ class Algorithm():
 #model.train_and_fit()
 #model.plot_data()
 
-Data_Stream('AAPL')
+#Data_Stream('AAPL')
+Algorithm('AAPL').Print_Data_Stream()

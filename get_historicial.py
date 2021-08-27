@@ -1,5 +1,4 @@
 import json, datetime
-import numpy as np
 import alpaca_trade_api as tradeapi
 from numpy.core.defchararray import array
 class History():

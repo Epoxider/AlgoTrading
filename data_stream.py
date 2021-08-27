@@ -24,12 +24,14 @@ async def on_account_updates(conn, channel, account):
 
 @conn.on(r'^AM$')
 async def on_minute_bars(conn, channel, data):
+    global list_of_price_queues
     print('Data: ', data.close)
     [q.append(data) for q in list_of_price_queues]
 
 class Data_Stream():
     def __init__(self, symbol):
-        self.symbol = 'AM.%s' %(symbol)
+        self.symbol = 'AM.*'
+        #self.symbol = 'AM.%s' %(symbol)
         global list_of_price_queues
         conn.run([self.symbol])
 
