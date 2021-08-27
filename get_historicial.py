@@ -8,7 +8,7 @@ class History():
         self.symbol = symbol
         self.timeframe = timeframe
         self.todays_date = datetime.datetime.now(datetime.timezone.utc)
-        self.start_date = self.todays_date - datetime.timedelta(days=6)
+        self.start_date = self.todays_date - datetime.timedelta(days=1)
         self.todays_date = self.todays_date.isoformat()
         self.start_date = self.start_date.isoformat()
 
