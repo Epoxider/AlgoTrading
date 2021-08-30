@@ -1,10 +1,10 @@
-import websocket, json
+import websocket, json, datetime, requests
 import alpaca_trade_api as tradeapi
 import pandas as pd
-import datetime
 import pandas_ta as ta
 from get_historicial import History
-from train_model import Algorithm
+from multiprocessing import freeze_support
+#from train_model import Algorithm
 
 from pandas.core.frame import DataFrame
 from collections import defaultdict
@@ -25,6 +25,8 @@ def on_open(ws):
     #listen_message = {"action": "subscribe", "bars": ["GME", "AAPL", "TSLA"]}
     listen_message = {"action": "subscribe", "bars": ["GME"]}
     ws.send(json.dumps(listen_message))
+
+data = {}
 
 def on_message(ws, message):
     message = json.loads(message)
@@ -48,71 +50,78 @@ def add_data(inc_data):
     df = df.append(inc_data, ignore_index=True)
     print('DF:\n', df)
     print('DF CLOSE:\n', df['Close'])
-    macd = df.ta.macd(df['Close'])
-    print('MACD:\n', macd)
 
 
 symbol = 'GME'
 timeframe = '1Min'
 todays_date = datetime.datetime.now(datetime.timezone.utc)
 start_date = todays_date - datetime.timedelta(days=1)
-url = 'https://data.alpaca.markets/v2/GME/bars'
-data = {}
+url = 'https://data.alpaca.markets/v2/'
 
-api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], url, api_version='v2')
-inc_df = api.get_barset(symbols=symbol, timeframe=timeframe, start=start_date, end=todays_date, limit=1000).df
-df = inc_df['GME']
+def get_clock():
+    global url
+    url = url + 'clock'
+    clock_api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], url, api_version='v2')
+    clock_response = clock_api.get_clock()
+    return clock_response
 
-#model = Algorithm(df)
-#model.train_and_fit()
-#model.plot_data()
-macd = df.ta.macd()
-print('MACD:\n', macd)
+def get_barset(symbol):
+    global url
+    url = url + symbol + '/bars'
+    bars_api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], url, api_version='v2')
+    inc_df = bars_api.get_barset(symbols=symbol, timeframe=timeframe, start=start_date, end=todays_date, limit=1000).df
+    df = inc_df[symbol]
+    return df
 
-'''
-if flagged above and macd > signal:
-    continue
-elif flagged above and macd < signal:
-    sell
-elif flagged below and macd < signal
+def post_order(symbol, qty, side):
+    global url
+    url = url + 'orders'
+    tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], url, api_version='v2')
+    order_response = orders_api.submit_order(symbol=symbol, qty=qty, side=side, type='market', time_in_force='gtc')
+    return order_response
 
-
-buy if flagged below and macd > signal else continue
-sell if flagged above and macd < signal else continue
-'''
+#inc_df = bars_api.get_barset(symbols=symbol, timeframe=timeframe, start=start_date, end=todays_date, limit=1000).df
 
 def macd_check_buy(df):
     # MACD buy sign is when macd goes from below the signal column to above
     # the flag is used to see if macd is currently > or < signal
+    macd_flag = False
     for count , row in df.iterrows():
-        if count == 0 and row['MACD_12_26_9'] < row['MACDs_12_26_9']:
-            macd_flag = False
-        else:
+        if (macd_flag) == False and (row['MACD_12_26_9'] > row['MACDs_12_26_9']):
+            print("************\nBUY NOW at count: ", count, '\n************')
             macd_flag = True
-
-        if macd_flag == False and row['MACD_12_26_9'] > row['MACDs_12_26_9']:
-            print("BUY NOW")
-            macd_flag = not macd_flag
-            print(row['MACD_12_26_9'])
-        elif not macd_flag and row['MACD_12_26_9'] < row['MACDs_12_26_9']:
-            print("SELL NOW")
-            macd_flag = not macd_flag
-            print(row['MACD_12_26_9'])
+        elif (macd_flag == True) and (row['MACD_12_26_9'] < row['MACDs_12_26_9']):
+            print("************\nSELL NOW at count: ", count, '\n************')
+            macd_flag = False
         else:
             continue
 
-macd_check_buy(macd)
-
 def start_stream():
     socket = 'wss://stream.data.alpaca.markets/v2/iex'
-
     api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], url, api_version='v2')
     inc_df = api.get_barset(symbols=symbol, timeframe=timeframe, start=start_date, end=todays_date, limit=1000).df
-    df = inc_df['GME'] 
-    macd = df.ta.macd()
-
-    print(macd)
-    print('MACD:\n', macd)
-
+    #df = inc_df['GME']     # Check main func 
     ws = websocket.WebSocketApp(socket, on_open=on_open, on_message=on_message, on_close=on_close)
     ws.run_forever()
+
+# my custom strat atm: 
+strat = ta.Strategy(
+    name='betttt',
+    description='SMA BBANDS RSI MACD VOLUME_SMA',
+    ta = [
+        {'kind': 'sma', 'length': 20},
+        {'kind': 'sma', 'length': 50},
+        {'kind': 'bbands', 'length': 20},
+        {'kind': 'rsi'},
+        {'kind': 'macd', 'length': 20},
+        {'kind': 'sma', 'close': 'volume', 'length': 20, 'prefix': 'VOLUME'}
+    ]
+)
+
+if __name__ == '__main__':
+    #freeze_support()
+    df = pd.read_csv('AAPL.csv')
+    df.ta.strategy(strat)
+    macd_check_buy(df)
+    ddf = df.drop(columns=['Date', 'Open', 'High', 'Low'])
+    print(ddf.tail().to_string())
