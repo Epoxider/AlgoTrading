@@ -1,0 +1,125 @@
+MOMENTUM
+    Awesome Oscillator: ao
+    Absolute Price Oscillator: apo
+    Bias: bias
+    Balance of Power: bop
+    BRAR: brar
+    Commodity Channel Index: cci
+    Center of Gravity: cg
+    Chande Momentum Oscillator: cmo
+    Coppock Curve: coppock
+    Fisher Transform: fisher
+    Inertia: inertia
+    KDJ: kdj
+    KST Oscillator: kst
+    Moving Average Convergence Divergence: macd
+    Momentum: mom
+    Percentage Price Oscillator: ppo
+    Psychological Line: psl
+    Percentage Volume Oscillator: pvo
+    Rate of Change: roc
+    Relative Strength Index: rsi
+    Relative Vigor Index: rvgi
+    Slope: *slope
+    Stochastic Oscillator: stoch
+    Trix: trix
+    True strength index: tsi
+    Ultimate Oscillator: uo
+    Williams %R: willr
+
+OVERLAP:
+    Double Exponential Moving Average: dema
+    Exponential Moving Average: ema
+    Fibonacci's Weighted Moving Average: fwma
+    High-Low Average: hl2
+    High-Low-Close Average: hlc3
+    Commonly known as 'Typical Price' in Technical Analysis literature
+    Hull Exponential Moving Average: hma
+    Ichimoku Kinkō Hyō: ichimoku
+    Use: help(ta.ichimoku). Returns two DataFrames.
+    Kaufman's Adaptive Moving Average: kama
+    Linear Regression: linreg
+    Midpoint: midpoint
+    Midprice: midprice
+    Open-High-Low-Close Average: ohlc4
+    Pascal's Weighted Moving Average: pwma
+    William's Moving Average: rma
+    Sine Weighted Moving Average: sinwma
+    Simple Moving Average: sma
+    Supertrend: supertrend
+    Symmetric Weighted Moving Average: swma
+    T3 Moving Average: t3
+    Triple Exponential Moving Average: tema
+    Triangular Moving Average: trima
+    Volume Weighted Average Price: vwap
+    Volume Weighted Moving Average: vwma
+    Weighted Closing Price: wcp
+    Weighted Moving Average: wma
+    Zero Lag Moving Average: zlma
+
+PERFORMANCE:
+    Log Return: log_return
+    Percent Return: percent_return
+    Trend Return: trend_return
+
+STATISTICS:
+    Entropy: entropy
+    Kurtosis: kurtosis
+    Mean Absolute Deviation: mad
+    Median: median
+    Quantile: quantile
+    Skew: skew
+    Standard Deviation: stdev
+    Variance: variance
+    Z Score: zscore
+
+TREND:
+    Average Directional Movement Index: adx
+    Archer Moving Averages Trends: amat
+    Aroon & Aroon Oscillator: aroon
+    Choppiness Index: chop
+    Chande Kroll Stop: cksp
+    Decreasing: decreasing
+    Detrended Price Oscillator: dpo
+    Increasing: increasing
+    Linear Decay: linear_decay
+    Long Run: long_run
+    Parabolic Stop and Reverse: psar
+    Q Stick: qstick
+    Short Run: short_run
+    Vortex: vortex
+
+UTILITY:
+    Above: above
+    Above Value: above_value
+    Below: below
+    Below Value: below_value
+    Cross: cross
+
+VOLATILTY:
+    Aberration: aberration
+    Acceleration Bands: accbands
+    Average True Range: atr
+    Bollinger Bands: bbands
+    Donchian Channel: donchian
+    Keltner Channel: kc
+    Mass Index: massi
+    Normalized Average True Range: natr
+    Price Distance: pdist
+    Relative Volatility Index: rvi
+    True Range: true_range
+
+VOLUME:
+    Accumulation/Distribution Index: ad
+    Accumulation/Distribution Oscillator: adosc
+    Archer On-Balance Volume: aobv
+    Chaikin Money Flow: cmf
+    Elder's Force Index: efi
+    Ease of Movement: eom
+    Money Flow Index: mfi
+    Negative Volume Index: nvi
+    On-Balance Volume: obv
+    Positive Volume Index: pvi
+    Price-Volume: pvol
+    Price Volume Trend: pvt
+    Volume Profile: vp

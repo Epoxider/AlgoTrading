@@ -10,9 +10,9 @@ from pandas.core.frame import DataFrame
 from collections import defaultdict
 
 class Bot():
-    def __init__(self, symbol):
+    def __init__(self, symbol, timeframe):
         self.symbol = symbol
-        self.data = {}
+        self.timeframe = timeframe
 
         with open("keys.json", "r") as f:
             self.key_dict = json.loads(f.readline().strip())
@@ -22,12 +22,25 @@ class Bot():
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
         self.barset_api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.barset_url, api_version='v2')
 
+        self.data = {}
+        self.df = self.get_barset()
+
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
-                {'kind': 'sma', 'length': 5},
-                {'kind': 'sma', 'length': 13},
-                {'kind': 'macd', 'length': 20},
+                #{'kind': 'sma', 'length': 5},
+                #{'kind': 'sma', 'length': 13},
+                #{'kind': 'ema', 'length': 20},
+                #{'kind': 'ema', 'length': 50},
+                #{'kind': 'macd', 'length': 20},
+                #{'kind': 'bbands', 'length': 20},
+                #{'kind': 'obv'},
+                #{'kind': 'ad'},
+                #{'kind': 'adx'},
+                #{'kind': 'cci'},
+                #{'kind': 'stoch'},
+                #{'kind': 'stoch'},
+                #{'kind': 'sma', 'close': 'volume', 'length': 20, 'prefix': 'VOLUME'}
             ]
         )
 
@@ -41,7 +54,7 @@ class Bot():
 
         ws.send(json.dumps(auth_data))
         #listen_message = {"action": "subscribe", "bars": ["GME", "AAPL", "TSLA"]}
-        listen_message = {"action": "subscribe", "bars": ['GME']}
+        listen_message = {"action": "subscribe", "bars": ['AAPL']}
         ws.send(json.dumps(listen_message))
 
 
@@ -55,16 +68,11 @@ class Bot():
             self.data['low'] = message[0]['l']
             self.data['close'] = message[0]['c']
             self.data['volume'] = message[0]['v']
+            print('\nDATA: ' + str(self.data))
             self.add_data(self.data)
 
     def on_close(ws):
         print("closed connection")
-
-    def add_data(self, inc_data):
-        print(inc_data)
-        self.df = self.df.append(inc_data, ignore_index=True)
-        self.df.ta.strategy(self.strat)
-        print('DF:\n', self.df.tail(10))
 
     def get_clock(self):
         clock_response = self.api.get_clock()
@@ -75,16 +83,17 @@ class Bot():
         print(account_response)
         return account_response
 
-    def get_barset(self, symbol, timeframe):
+    def get_barset(self):
         todays_date = datetime.datetime.now(datetime.timezone.utc)
         start_date = todays_date - datetime.timedelta(days=1)
-        inc_df = self.barset_api.get_barset(symbols=symbol, timeframe=timeframe, start=start_date, end=todays_date, limit=500).df
-        df = inc_df[symbol]
-        return df
+        inc_df = self.barset_api.get_barset(symbols=self.symbol, timeframe=self.timeframe, start=start_date, end=todays_date, limit=500).df
+        self.df = inc_df[self.symbol]
+        return self.df
 
     def post_order(self, symbol, qty, side):
+        print('SUBMITTING ORDER\n')
         order_response = self.api.submit_order(symbol=symbol, qty=qty, side=side, type='market', time_in_force='gtc')
-        print(order_response)
+        #print(order_response)
         return order_response
 
     def get_list_of_orders(self):
@@ -96,20 +105,57 @@ class Bot():
         cancel_response = self.api.cancel_all_orders()
         print(cancel_response)
         return cancel_response
+    
+    def get_position(self):
+        position_response = self.api.get_position(self.symbol)
+        print(position_response.qty)
+        return position_response
+
+    def get_position_list(self):
+        position_list_response = self.api.list_positions()
+        #print(position_list_response)
+        return position_list_response
+
+    def apply_strat(self):
+        self.df.ta.strategy(self.strat)
+        return self.df
+
+    def add_data(self, inc_data):
+        print(inc_data)
+        self.df = self.df.append(inc_data, ignore_index=True)
+        self.df.ta.strategy(self.strat)
+        print('DF:\n', self.df.tail(10))
+        print("JUMPING INTO SMA CHECK")
+        self.sma_check()
 
 
-    def sma_check_buy(self, df):
-        '''
-        if there is an open order:
-            pass
-        else:
-            if 5 is greater than 13:
-                send buy
-            else:
-                wait for it to become greater
-        '''
-        if df['SMA_5'] > df['SMA_13']:
-            self.post_order('GME', 10, 'buy')
+
+#################################################
+    def ema_check(self):
+        position_list = self.get_position_list()
+        sma_flag = self.df['EMA_5'].iloc[-1] > self.df['EMA_13'].iloc[-1] 
+        print('SMA FLAG: ' + str(sma_flag))
+        if len(position_list) == 0 and sma_flag:
+            print("STEPPING INTO BUY CONDITIONAL")
+            self.post_order('AAPL', 10, 'buy')
+        elif len(position_list)!= 0 and not sma_flag:
+            position = self.get_position()
+            if position.qty != 0:
+                print("STEPPING INTO SELL CONDITIONAL")
+                self.post_order('AAPL', 10, 'sell')
+
+    def sma_check(self):
+        position_list = self.get_position_list()
+        sma_flag = self.df['SMA_5'].iloc[-1] > self.df['SMA_13'].iloc[-1] 
+        print('SMA FLAG: ' + str(sma_flag))
+        if len(position_list) == 0 and sma_flag:
+            print("STEPPING INTO BUY CONDITIONAL")
+            self.post_order('AAPL', 10, 'buy')
+        elif len(position_list)!= 0 and not sma_flag:
+            position = self.get_position()
+            if position.qty != 0:
+                print("STEPPING INTO SELL CONDITIONAL")
+                self.post_order('AAPL', 10, 'sell')
 
     def macd_check_buy(self):
         # MACD buy sign is when macd goes from below the signal column to above
@@ -127,11 +173,8 @@ class Bot():
 
     def start_stream(self):
         socket = 'wss://stream.data.alpaca.markets/v2/iex'
-        self.df = self.get_barset(self.symbol, 'minute')
         self.df.ta.strategy(self.strat)
-        self.macd_check_buy()
-        print(self.df.tail(10))
-        #api = tradeapi.REST(key_dict['api_key_id'], key_dict['api_secret'], url, api_version='v2')
+        #print(self.df.tail(10))
         #inc_df = api.get_barset(symbols=symbol, timeframe=timeframe, start=start_date, end=todays_date, limit=1000).df
         #df = inc_df['GME']     # Check main func 
         ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
@@ -154,12 +197,7 @@ class Bot():
 
 if __name__ == '__main__':
     freeze_support()
-    bot = Bot('GME')
-    bot.start_stream()
-    #symbol = 'GME'
-    #start_stream(symbol)
-    #df = pd.read_csv('AAPL.csv')
-    #df.ta.strategy(strat)
-    #macd_check_buy(df)
-    #ddf = df.drop(columns=['Date', 'Open', 'High', 'Low'])
-    #print(ddf.tail().to_string())
+    bot = Bot('AAPL', 'minute')
+    #bot.start_stream()
+    df = bot.apply_strat()
+    print(df.tail(15))
