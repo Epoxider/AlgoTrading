@@ -21,7 +21,6 @@ class Bot():
         self.barset_url = 'https://data.alpaca.markets/v2/' + symbol + '/bars'
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
         self.barset_api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.barset_url, api_version='v2')
-
         self.data = {}
         self.df = self.get_barset()
 
@@ -30,8 +29,8 @@ class Bot():
             ta = [
                 #{'kind': 'sma', 'length': 5},
                 #{'kind': 'sma', 'length': 13},
-                #{'kind': 'ema', 'length': 20},
-                #{'kind': 'ema', 'length': 50},
+                {'kind': 'ema', 'length': 60},
+                {'kind': 'ema', 'length': 180},
                 #{'kind': 'macd', 'length': 20},
                 #{'kind': 'bbands', 'length': 20},
                 #{'kind': 'obv'},
@@ -76,7 +75,7 @@ class Bot():
 
     def get_clock(self):
         clock_response = self.api.get_clock()
-        print(clock_response.is_open)
+        print('\nCLOCK BOOL:' + str(clock_response.is_open) + '\n')
     
     def get_account_info(self):
         account_response = self.api.get_account()
@@ -122,18 +121,26 @@ class Bot():
 
     def add_data(self, inc_data):
         print(inc_data)
+        self.check_market_close()
         self.df = self.df.append(inc_data, ignore_index=True)
         self.df.ta.strategy(self.strat)
         print('DF:\n', self.df.tail(10))
-        print("JUMPING INTO SMA CHECK")
-        self.sma_check()
+        print("JUMPING INTO EMA CHECK")
+        self.ema_check()
 
+    def clear_df_data(self):
+        self.df = None
 
+    def check_market_close(self):
+        c = self.api.get_clock().is_open
+        if c == False:
+            print('CLOCK BOOL:' + str(c))
+            exit()
 
 #################################################
     def ema_check(self):
         position_list = self.get_position_list()
-        sma_flag = self.df['EMA_5'].iloc[-1] > self.df['EMA_13'].iloc[-1] 
+        sma_flag = self.df['EMA_60'].iloc[-1] > self.df['EMA_180'].iloc[-1] 
         print('SMA FLAG: ' + str(sma_flag))
         if len(position_list) == 0 and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
@@ -174,30 +181,12 @@ class Bot():
     def start_stream(self):
         socket = 'wss://stream.data.alpaca.markets/v2/iex'
         self.df.ta.strategy(self.strat)
-        #print(self.df.tail(10))
-        #inc_df = api.get_barset(symbols=symbol, timeframe=timeframe, start=start_date, end=todays_date, limit=1000).df
-        #df = inc_df['GME']     # Check main func 
         ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
         ws.run_forever()
-
-    # my custom strat atm: 
-    '''strat = ta.Strategy(
-        name='betttt',
-        description='SMA BBANDS RSI MACD VOLUME_SMA',
-        ta = [
-            {'kind': 'sma', 'length': 20},
-            {'kind': 'sma', 'length': 50},
-            {'kind': 'bbands', 'length': 20},
-            {'kind': 'rsi'},
-            {'kind': 'macd', 'length': 20},
-            {'kind': 'sma', 'close': 'volume', 'length': 20, 'prefix': 'VOLUME'}
-        ]
-    )
-    '''
 
 if __name__ == '__main__':
     freeze_support()
     bot = Bot('AAPL', 'minute')
-    #bot.start_stream()
-    df = bot.apply_strat()
-    print(df.tail(15))
+    bot.start_stream()
+    #df = bot.apply_strat()
+    #print(df.tail(15))
