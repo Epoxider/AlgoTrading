@@ -1,36 +1,48 @@
-import websocket, json, datetime, requests
+import websocket, json, datetime
 import alpaca_trade_api as tradeapi
-import pandas as pd
 import pandas_ta as ta
-from get_historicial import History
 from multiprocessing import freeze_support
-#from train_model import Algorithm
-
-from pandas.core.frame import DataFrame
-from collections import defaultdict
 
 class Bot():
-    def __init__(self, symbol, timeframe):
-        self.symbol = symbol
+    def __init__(self, symbol_list, timeframe):
+
+        self.symbol_list = symbol_list
         self.timeframe = timeframe
+        self.symbol_data = {}   # Keys = symbols, values = strategy datafames
 
         with open("keys.json", "r") as f:
             self.key_dict = json.loads(f.readline().strip())
 
-        self.url = 'https://paper-api.alpaca.markets'
-        self.barset_url = 'https://data.alpaca.markets/v2/' + symbol + '/bars'
-        self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
-        self.barset_api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.barset_url, api_version='v2')
-        self.data = {}
-        self.df = self.get_barset()
 
+        self.url = 'https://paper-api.alpaca.markets'
+        self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
+
+
+        self.strat = ta.Strategy(
+            name='betttt',
+            ta = [
+                {'kind': 'ema', 'length': 60},
+                {'kind': 'ema', 'length': 180},
+            ]
+        )
+
+        # for each symbol get get the barset history
+        for symbol in symbol_list:
+            self.symbol_data[symbol] = self.get_barset(symbol)
+            self.symbol_data[symbol].ta.strategy(self.strat)
+
+        print(self.symbol_data)
+        exit()
+
+        '''
+        Exapmle of different strategies you can use. More found in indicator_list.txt 
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
                 #{'kind': 'sma', 'length': 5},
                 #{'kind': 'sma', 'length': 13},
-                {'kind': 'ema', 'length': 60},
-                {'kind': 'ema', 'length': 180},
+                #{'kind': 'ema', 'length': 60},
+                #{'kind': 'ema', 'length': 180},
                 #{'kind': 'macd', 'length': 20},
                 #{'kind': 'bbands', 'length': 20},
                 #{'kind': 'obv'},
@@ -38,94 +50,35 @@ class Bot():
                 #{'kind': 'adx'},
                 #{'kind': 'cci'},
                 #{'kind': 'stoch'},
-                #{'kind': 'stoch'},
                 #{'kind': 'sma', 'close': 'volume', 'length': 20, 'prefix': 'VOLUME'}
             ]
         )
-
-    def on_open(self,ws):
-        print("opened")
-        auth_data = {
-            "action": "auth",
-            'key': self.key_dict['api_key_id'],
-            'secret': self.key_dict['api_secret']
-        }
-
-        ws.send(json.dumps(auth_data))
-        #listen_message = {"action": "subscribe", "bars": ["GME", "AAPL", "TSLA"]}
-        listen_message = {"action": "subscribe", "bars": ['AAPL']}
-        ws.send(json.dumps(listen_message))
+        '''
 
 
-    def on_message(self, ws, message):
-        message = json.loads(message)
-        print(message)
-        if message[0]['T'] == 'b':
-            self.data['date'] = message[0]['t']
-            self.data['open'] = message[0]['o']
-            self.data['high'] = message[0]['h']
-            self.data['low'] = message[0]['l']
-            self.data['close'] = message[0]['c']
-            self.data['volume'] = message[0]['v']
-            print('\nDATA: ' + str(self.data))
-            self.add_data(self.data)
+# DATA MANIUPLATION
+##################################################################################################
+    def convert_data(self, df):
+        # Converts the dataframe returned from alpaca to one that works with pandas_ta
+        data = {}
+        #data['date'] = df['t']
+        data['open'] = df['o']
+        data['high'] = df['h']
+        data['low'] = df['l']
+        data['close'] = df['c']
+        data['volume'] = df['v']
+        print(data)
+        return data
 
-    def on_close(ws):
-        print("closed connection")
 
-    def get_clock(self):
-        clock_response = self.api.get_clock()
-        print('\nCLOCK BOOL:' + str(clock_response.is_open) + '\n')
-    
-    def get_account_info(self):
-        account_response = self.api.get_account()
-        print(account_response)
-        return account_response
-
-    def get_barset(self):
-        todays_date = datetime.datetime.now(datetime.timezone.utc)
-        start_date = todays_date - datetime.timedelta(days=1)
-        inc_df = self.barset_api.get_barset(symbols=self.symbol, timeframe=self.timeframe, start=start_date, end=todays_date, limit=500).df
-        self.df = inc_df[self.symbol]
-        return self.df
-
-    def post_order(self, symbol, qty, side):
-        print('SUBMITTING ORDER\n')
-        order_response = self.api.submit_order(symbol=symbol, qty=qty, side=side, type='market', time_in_force='gtc')
-        #print(order_response)
-        return order_response
-
-    def get_list_of_orders(self):
-        order_list_response = self.api.list_orders()
-        print(order_list_response)
-        return order_list_response
-
-    def cancel_order(self):
-        cancel_response = self.api.cancel_all_orders()
-        print(cancel_response)
-        return cancel_response
-    
-    def get_position(self):
-        position_response = self.api.get_position(self.symbol)
-        print(position_response.qty)
-        return position_response
-
-    def get_position_list(self):
-        position_list_response = self.api.list_positions()
-        #print(position_list_response)
-        return position_list_response
-
-    def apply_strat(self):
-        self.df.ta.strategy(self.strat)
-        return self.df
-
-    def add_data(self, inc_data):
-        print(inc_data)
+    def add_data(self, symbol, symbol_data):
         self.check_market_close()
-        self.df = self.df.append(inc_data, ignore_index=True)
-        self.df.ta.strategy(self.strat)
+        data = self.convert_data(symbol_data)
+
+        self.symbol_data[symbol].append(data, ignore_idex=True)
+        self.symbol_data[symbol].ta.strategy(self.strat)
+
         print('DF:\n', self.df.tail(10))
-        print("JUMPING INTO EMA CHECK")
         self.ema_check()
 
     def clear_df_data(self):
@@ -134,14 +87,86 @@ class Bot():
     def check_market_close(self):
         c = self.api.get_clock().is_open
         if c == False:
-            print('CLOCK BOOL:' + str(c))
             exit()
 
-#################################################
+
+# WEB SOCKET STREAMING
+##################################################################################################
+    def start_stream(self):
+        socket = 'wss://stream.data.alpaca.markets/v2/iex'
+        self.df.ta.strategy(self.strat)
+        ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
+        ws.run_forever()
+
+    def on_open(self,ws):
+        print("opened")
+        auth_data = {
+            "action": "auth",
+            'key': self.key_dict['api_key_id'],
+            'secret': self.key_dict['api_secret']
+        }
+        ws.send(json.dumps(auth_data))
+
+        listen_message = {"action": "subscribe", "bars": self.symbol_list}
+        ws.send(json.dumps(listen_message))
+
+    def on_message(self, ws, message):
+        message = json.loads(message)
+        print(message)
+        if message[0]['T'] == 'b':
+            for stock in message:
+                print('\nDATA: ' + str(stock))
+                self.add_data(stock, message[stock])
+
+    def on_close(ws):
+        print("Closed Connection")
+
+
+
+# GETTERS
+##################################################################################################
+    def get_clock(self):
+        clock_response = self.api.get_clock()
+        print('\nCLOCK BOOL:' + str(clock_response.is_open) + '\n')
+    
+    def get_list_of_orders(self):
+        order_list_response = self.api.list_orders()
+        print(order_list_response)
+        return order_list_response
+
+    def get_position(self, symbol):
+        position_response = self.api.get_position(symbol)
+        print(position_response.qty)
+        return position_response
+
+    def get_position_list(self):
+        position_list_response = self.api.list_positions()
+        #print(position_list_response)
+        return position_list_response
+
+    def get_account_info(self):
+        account_response = self.api.get_account()
+        print(account_response)
+        return account_response
+
+    def get_barset(self, symbol):
+        # Takes in a symbol and creates the URL to get barset
+        barset_url = 'https://data.alpaca.markets/v2/' + symbol + '/bars'
+        barset_api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], barset_url, api_version='v2')
+
+        todays_date = datetime.datetime.now(datetime.timezone.utc)
+        start_date = todays_date - datetime.timedelta(days=1)
+
+        barset_df = barset_api.get_barset(symbols=symbol, timeframe=self.timeframe, start=start_date, end=todays_date, limit=500).df
+        return barset_df[symbol]
+
+
+# Indicators
+##################################################################################################
     def ema_check(self):
         position_list = self.get_position_list()
         sma_flag = self.df['EMA_60'].iloc[-1] > self.df['EMA_180'].iloc[-1] 
-        print('SMA FLAG: ' + str(sma_flag))
+        print('EMA FLAG: ' + str(sma_flag))
         if len(position_list) == 0 and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.post_order('AAPL', 10, 'buy')
@@ -178,15 +203,25 @@ class Bot():
             else:
                 continue
 
-    def start_stream(self):
-        socket = 'wss://stream.data.alpaca.markets/v2/iex'
-        self.df.ta.strategy(self.strat)
-        ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
-        ws.run_forever()
+
+# ORDER FUNCTIONS
+##################################################################################################
+    def post_order(self, symbol, qty, side):
+        print('SUBMITTING ORDER\n')
+        order_response = self.api.submit_order(symbol=symbol, qty=qty, side=side, type='market', time_in_force='gtc')
+        #print(order_response)
+        return order_response
+
+    def cancel_order(self):
+        cancel_response = self.api.cancel_all_orders()
+        print(cancel_response)
+        return cancel_response
+
 
 if __name__ == '__main__':
     freeze_support()
-    bot = Bot('AAPL', 'minute')
-    bot.start_stream()
+    symbols = ['GME', 'TSLA']
+    bot = Bot(symbols, 'minute')
+    #bot.start_stream()
     #df = bot.apply_strat()
     #print(df.tail(15))
