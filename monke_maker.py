@@ -5,7 +5,6 @@ from multiprocessing import freeze_support
 
 class Bot():
     def __init__(self, symbol_list, timeframe):
-
         self.symbol_list = symbol_list
         self.timeframe = timeframe
         self.symbol_data = {}   # Keys = symbols, values = strategy datafames
@@ -13,10 +12,8 @@ class Bot():
         with open("keys.json", "r") as f:
             self.key_dict = json.loads(f.readline().strip())
 
-
         self.url = 'https://paper-api.alpaca.markets'
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
-
 
         self.strat = ta.Strategy(
             name='betttt',
@@ -29,7 +26,8 @@ class Bot():
         # for each symbol get get the barset history
         for symbol in symbol_list:
             self.symbol_data[symbol] = self.get_barset(symbol)
-            self.symbol_data[symbol].ta.strategy(self.strat)
+            #self.symbol_data[symbol].ta.strategy(self.strat)
+            self.symbol_data[symbol].ta.strategy(ta.CommonStrategy)
 
         print(self.symbol_data)
         exit()
