@@ -57,26 +57,13 @@ class Bot():
 
 # DATA MANIUPLATION
 ##################################################################################################
-    def convert_data(self, df):
-        # Converts the dataframe returned from alpaca to one that works with pandas_ta
-        data = {}
-        #data['date'] = df['t']
-        data['open'] = df['o']
-        data['high'] = df['h']
-        data['low'] = df['l']
-        data['close'] = df['c']
-        data['volume'] = df['v']
-        print(data)
-        return data
-
 
     def add_data(self, symbol, symbol_data):
         self.check_market_close()
-        data = self.convert_data(symbol_data)
-
-        self.symbol_data_dict[symbol].append(data, ignore_idex=True)
-        self.symbol_data_dict[symbol].ta.strategy(self.strat)
-
+        df = self.symbol_data_dict[symbol] 
+        df.ta.strategy(self.strat)
+        self.symbol_data_dict[symbol] = df
+        print(symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
         self.ema_check(symbol)
 
     def clear_df_data(self, symbol):
@@ -111,11 +98,16 @@ class Bot():
     # What happens when websocket receives a message from alpaca
     def on_message(self, ws, message):
         message = json.loads(message)
-        print('MESSAGE: ' + message)
-        #print('MESSAGE LEN: ' + str(len(message[0])))
-        #print('MESSAGE OPEN: ' + str(message[0]['o']))
-        #if message[0]['T'] == 'b':
-            #self.add_data(stock, message[stock])
+        print('MESSAGE: ' + str(message))
+        if message[0]['T'] == 'b':
+            data = {}
+            #data['date'] = symbol_data['t']
+            data['open'] = message[0]['o']
+            data['high'] = message[0]['h']
+            data['low'] = message[0]['l']
+            data['close'] = message[0]['c']
+            data['volume'] = message[0]['v']
+            self.add_data(str(message[0]['S']), data)
 
     # can you guess what his does?
     def on_close(ws):
@@ -157,8 +149,8 @@ class Bot():
         todays_date = datetime.datetime.now(datetime.timezone.utc)
         start_date = todays_date - datetime.timedelta(days=1)
 
-        barset_df = barset_api.get_barset(symbols=symbol, timeframe=self.timeframe, start=start_date, end=todays_date, limit=500).df
-        return barset_df[symbol]
+        barset_symbol_data = barset_api.get_barset(symbols=symbol, timeframe=self.timeframe, start=start_date, end=todays_date, limit=500).df
+        return barset_symbol_data[symbol]
 
 
 # Indicators
@@ -166,7 +158,7 @@ class Bot():
     def ema_check(self, symbol):
         position_list = self.get_position_list()
         sma_flag = self.symbol_data_dict[symbol]['EMA_60'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_180'].iloc[-1] 
-        print('EMA FLAG: ' + str(sma_flag))
+        print('EMA FLAG: ' + str(sma_flag) + '\n')
         if len(position_list) == 0 and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.post_order('AAPL', 10, 'buy')
