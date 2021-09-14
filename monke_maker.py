@@ -31,9 +31,6 @@ class Bot():
             self.symbol_data[symbol] = self.get_barset(symbol)
             self.symbol_data[symbol].ta.strategy(self.strat)
 
-        print(self.symbol_data)
-        exit()
-
         '''
         Exapmle of different strategies you can use. More found in indicator_list.txt 
         self.strat = ta.Strategy(
@@ -79,7 +76,7 @@ class Bot():
         self.symbol_data[symbol].ta.strategy(self.strat)
 
         print('DF:\n', self.df.tail(10))
-        self.ema_check()
+        #self.ema_check()
 
     def clear_df_data(self):
         self.df = None
@@ -94,7 +91,6 @@ class Bot():
 ##################################################################################################
     def start_stream(self):
         socket = 'wss://stream.data.alpaca.markets/v2/iex'
-        self.df.ta.strategy(self.strat)
         ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
         ws.run_forever()
 
@@ -222,6 +218,4 @@ if __name__ == '__main__':
     freeze_support()
     symbols = ['GME', 'TSLA']
     bot = Bot(symbols, 'minute')
-    #bot.start_stream()
-    #df = bot.apply_strat()
-    #print(df.tail(15))
+    bot.start_stream()
