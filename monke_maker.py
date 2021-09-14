@@ -13,7 +13,6 @@ class Bot():
         with open("keys.json", "r") as f:
             self.key_dict = json.loads(f.readline().strip())
 
-
         self.url = 'https://paper-api.alpaca.markets'
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
 
@@ -84,21 +83,20 @@ class Bot():
 
     # What happens when websocket connection is made
     def on_open(self,ws):
-        print("opened")
+        print("Opened websocket connection successfully!")
         auth_data = {
             "action": "auth",
             'key': self.key_dict['api_key_id'],
             'secret': self.key_dict['api_secret']
         }
         ws.send(json.dumps(auth_data))
-
         listen_message = {"action": "subscribe", "bars": self.symbol_list}
         ws.send(json.dumps(listen_message))
 
     # What happens when websocket receives a message from alpaca
     def on_message(self, ws, message):
         message = json.loads(message)
-        print('MESSAGE: ' + str(message))
+        print('\nMESSAGE: ' + str(message))
         if message[0]['T'] == 'b':
             data = {}
             #data['date'] = symbol_data['t']
@@ -123,22 +121,22 @@ class Bot():
     
     def get_list_of_orders(self):
         order_list_response = self.api.list_orders()
-        print(order_list_response)
+        print('\nOrder list: ' + order_list_response)
         return order_list_response
 
     def get_position(self, symbol):
         position_response = self.api.get_position(symbol)
-        print(position_response.qty)
+        print('\nPosition quantity response: ' + str(position_response.qty))
         return position_response
 
     def get_position_list(self):
         position_list_response = self.api.list_positions()
-        #print(position_list_response)
+        print('\nPossition response list: ' + str(position_list_response))
         return position_list_response
 
     def get_account_info(self):
         account_response = self.api.get_account()
-        print(account_response)
+        print('\nAccount response: ' + str(account_response))
         return account_response
 
     def get_barset(self, symbol):
@@ -146,10 +144,11 @@ class Bot():
         barset_url = 'https://data.alpaca.markets/v2/' + symbol + '/bars'
         barset_api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], barset_url, api_version='v2')
 
-        todays_date = datetime.datetime.now(datetime.timezone.utc)
-        start_date = todays_date - datetime.timedelta(days=1)
+        # Need to calculate end date first to correctly subtract time to get start date
+        end_date = datetime.datetime.now(datetime.timezone.utc)
+        start_date = end_date - datetime.timedelta(days=1)
 
-        barset_symbol_data = barset_api.get_barset(symbols=symbol, timeframe=self.timeframe, start=start_date, end=todays_date, limit=500).df
+        barset_symbol_data = barset_api.get_barset(symbols=symbol, timeframe=self.timeframe, start=start_date, end=end_date, limit=500).df
         return barset_symbol_data[symbol]
 
 
@@ -201,12 +200,12 @@ class Bot():
     def post_order(self, symbol, qty, side):
         print('SUBMITTING ORDER\n')
         order_response = self.api.submit_order(symbol=symbol, qty=qty, side=side, type='market', time_in_force='gtc')
-        print(order_response)
+        print('\nOrder response: ' + order_response)
         return order_response
 
     def cancel_order(self):
         cancel_response = self.api.cancel_all_orders()
-        print(cancel_response)
+        print('\nCancel response: ' + cancel_response)
         return cancel_response
 
 
