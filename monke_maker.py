@@ -8,7 +8,7 @@ class Bot():
 
         self.symbol_list = symbol_list
         self.timeframe = timeframe
-        self.symbol_data = {}   # Keys = symbols, values = strategy datafames
+        self.symbol_data_dict = {}   # Keys = symbols, values = strategy datafames
 
         with open("keys.json", "r") as f:
             self.key_dict = json.loads(f.readline().strip())
@@ -17,7 +17,9 @@ class Bot():
         self.url = 'https://paper-api.alpaca.markets'
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
 
-
+        # Custom strategy from my monke brain
+        # Note: This calculates the indicators, NOT when to buy sell
+        #       need to calculate buy/sell logic in addition
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
@@ -28,8 +30,8 @@ class Bot():
 
         # for each symbol get get the barset history
         for symbol in symbol_list:
-            self.symbol_data[symbol] = self.get_barset(symbol)
-            self.symbol_data[symbol].ta.strategy(self.strat)
+            self.symbol_data_dict[symbol] = self.get_barset(symbol)
+            self.symbol_data_dict[symbol].ta.strategy(self.strat)
 
         '''
         Exapmle of different strategies you can use. More found in indicator_list.txt 
@@ -72,14 +74,13 @@ class Bot():
         self.check_market_close()
         data = self.convert_data(symbol_data)
 
-        self.symbol_data[symbol].append(data, ignore_idex=True)
-        self.symbol_data[symbol].ta.strategy(self.strat)
+        self.symbol_data_dict[symbol].append(data, ignore_idex=True)
+        self.symbol_data_dict[symbol].ta.strategy(self.strat)
 
-        print('DF:\n', self.df.tail(10))
-        #self.ema_check()
+        self.ema_check(symbol)
 
-    def clear_df_data(self):
-        self.df = None
+    def clear_df_data(self, symbol):
+        self.symbol_data_dict[symbol] = None
 
     def check_market_close(self):
         c = self.api.get_clock().is_open
@@ -94,6 +95,7 @@ class Bot():
         ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
         ws.run_forever()
 
+    # What happens when websocket connection is made
     def on_open(self,ws):
         print("opened")
         auth_data = {
@@ -106,14 +108,16 @@ class Bot():
         listen_message = {"action": "subscribe", "bars": self.symbol_list}
         ws.send(json.dumps(listen_message))
 
+    # What happens when websocket receives a message from alpaca
     def on_message(self, ws, message):
         message = json.loads(message)
-        print(message)
-        if message[0]['T'] == 'b':
-            for stock in message:
-                print('\nDATA: ' + str(stock))
-                self.add_data(stock, message[stock])
+        print('MESSAGE: ' + message)
+        #print('MESSAGE LEN: ' + str(len(message[0])))
+        #print('MESSAGE OPEN: ' + str(message[0]['o']))
+        #if message[0]['T'] == 'b':
+            #self.add_data(stock, message[stock])
 
+    # can you guess what his does?
     def on_close(ws):
         print("Closed Connection")
 
@@ -159,9 +163,9 @@ class Bot():
 
 # Indicators
 ##################################################################################################
-    def ema_check(self):
+    def ema_check(self, symbol):
         position_list = self.get_position_list()
-        sma_flag = self.df['EMA_60'].iloc[-1] > self.df['EMA_180'].iloc[-1] 
+        sma_flag = self.symbol_data_dict[symbol]['EMA_60'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_180'].iloc[-1] 
         print('EMA FLAG: ' + str(sma_flag))
         if len(position_list) == 0 and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
@@ -172,9 +176,9 @@ class Bot():
                 print("STEPPING INTO SELL CONDITIONAL")
                 self.post_order('AAPL', 10, 'sell')
 
-    def sma_check(self):
+    def sma_check(self, symbol):
         position_list = self.get_position_list()
-        sma_flag = self.df['SMA_5'].iloc[-1] > self.df['SMA_13'].iloc[-1] 
+        sma_flag = self.symbol_data_dict[symbol]['SMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['SMA_13'].iloc[-1] 
         print('SMA FLAG: ' + str(sma_flag))
         if len(position_list) == 0 and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
@@ -185,11 +189,11 @@ class Bot():
                 print("STEPPING INTO SELL CONDITIONAL")
                 self.post_order('AAPL', 10, 'sell')
 
-    def macd_check_buy(self):
+    def macd_check_buy(self, symbol):
         # MACD buy sign is when macd goes from below the signal column to above
         # the flag is used to see if macd is currently > or < signal
         macd_flag = False
-        for count, row in self.df.iterrows():
+        for count, row in self.symbol_data_dict[symbol].iterrows():
             if (macd_flag) == False and (row['MACD_12_26_9'] > row['MACDs_12_26_9']):
                 print("************\nBUY NOW at count: ", count, '\n************')
                 macd_flag = True
@@ -205,7 +209,7 @@ class Bot():
     def post_order(self, symbol, qty, side):
         print('SUBMITTING ORDER\n')
         order_response = self.api.submit_order(symbol=symbol, qty=qty, side=side, type='market', time_in_force='gtc')
-        #print(order_response)
+        print(order_response)
         return order_response
 
     def cancel_order(self):
@@ -216,6 +220,6 @@ class Bot():
 
 if __name__ == '__main__':
     freeze_support()
-    symbols = ['GME', 'TSLA']
+    symbols = ['GME', 'TSLA', 'AAPL']
     bot = Bot(symbols, 'minute')
     bot.start_stream()
