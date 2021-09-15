@@ -1,0 +1,339 @@
+{
+    "ao": [
+        "AO_5_34"
+    ],
+    "bbands": [
+        "BBL_20_2.0",
+        "BBM_20_2.0",
+        "BBU_20_2.0",
+        "BBB_20_2.0",
+        "BBP_20_2.0"
+    ],
+    "apo": [
+        "APO_12_26"
+    ],
+    "bias": [
+        "BIAS_SMA_20"
+    ],
+    "bop": [
+        "BOP"
+    ],
+    "brar": [
+        "AR_20",
+        "BR_20"
+    ],
+    "cci": [
+        "CCI_20_0.015"
+    ],
+    "cg": [
+        "CG_20"
+    ],
+    "cmo": [
+        "CMO_20"
+    ],
+    "coppock": [
+        "COPC_11_14_20"
+    ],
+    "fisher": [
+        "FISHERT_20_1",
+        "FISHERTs_20_1"
+    ],
+    "inertia": [
+        "INERTIA_20_14"
+    ],
+    "kdj": [
+        "K_20_3",
+        "D_20_3",
+        "J_20_3"
+    ],
+    "kst": [
+        "KST_10_15_20_30_10_10_10_15",
+        "KSTs_9"
+    ],
+    "macd": [
+        "MACD_12_26_9",
+        "MACDh_12_26_9",
+        "MACDs_12_26_9"
+    ],
+    "mom": [
+        "MOM_20"
+    ],
+    "ppo": [
+        "PPO_12_26_9",
+        "PPOh_12_26_9",
+        "PPOs_12_26_9"
+    ],
+    "psl": [
+        "PSL_20"
+    ],
+    "pvo": [
+        "PVO_12_26_9",
+        "PVOh_12_26_9",
+        "PVOs_12_26_9"
+    ],
+    "roc": [
+        "ROC_20"
+    ],
+    "rsi": [
+        "RSI_20"
+    ],
+    "rvgi": [
+        "RVGI_20_4",
+        "RVGIs_20_4"
+    ],
+    "slope": [
+        "SLOPE_20"
+    ],
+    "stoch": [
+        "STOCHk_14_3_3",
+        "STOCHd_14_3_3"
+    ],
+    "trix": [
+        "TRIX_20_9",
+        "TRIXs_20_9"
+    ],
+    "tsi": [
+        "TSI_13_25_13",
+        "TSIs_13_25_13"
+    ],
+    "uo": [
+        "UO_7_14_28"
+    ],
+    "willr": [
+        "WILLR_20"
+    ],
+    "dema": [
+        "DEMA_20"
+    ],
+    "ema": [
+        "EMA_20"
+    ],
+    "fwma": [
+        "FWMA_20"
+    ],
+    "kama": [
+        "KAMA_20_2_30"
+    ],
+    "linreg": [
+        "LR_20"
+    ],
+    "midpoint": [
+        "MIDPOINT_20"
+    ],
+    "midprice": [
+        "MIDPRICE_20"
+    ],
+    "ohlc4": [
+        "OHLC4"
+    ],
+    "pwma": [
+        "PWMA_20"
+    ],
+    "rma": [
+        "RMA_20"
+    ],
+    "sinwma": [
+        "SINWMA_20"
+    ],
+    "sma": [
+        "SMA_20"
+    ],
+    "supertrend": [
+        "SUPERT_20_3.0",
+        "SUPERTd_20_3.0",
+        "SUPERTl_20_3.0",
+        "SUPERTs_20_3.0"
+    ],
+    "swma": [
+        "SWMA_20"
+    ],
+    "t3": [
+        "T3_20_0.7"
+    ],
+    "tema": [
+        "TEMA_20"
+    ],
+    "trima": [
+        "TRIMA_20"
+    ],
+    "vwap": [
+        "VWAP_D"
+    ],
+    "vwma": [
+        "VWMA_20"
+    ],
+    "wcp": [
+        "WCP"
+    ],
+    "wma": [
+        "WMA_20"
+    ],
+    "zlma": [
+        "ZL_EMA_20"
+    ],
+    "log_return": [
+        "LOGRET_20"
+    ],
+    "percent_return": [
+        "PCTRET_20"
+    ],
+    "entropy": [
+        "ENTP_20"
+    ],
+    "kurtosis": [
+        "KURT_20"
+    ],
+    "mad": [
+        "MAD_20"
+    ],
+    "median": [
+        "MEDIAN_20"
+    ],
+    "quantile": [
+        "QTL_20_0.5"
+    ],
+    "skew": [
+        "SKEW_20"
+    ],
+    "stdev": [
+        "STDEV_20"
+    ],
+    "variance": [
+        "VAR_20"
+    ],
+    "zscore": [
+        "ZS_20"
+    ],
+    "adx": [
+        "ADX_20",
+        "DMP_20",
+        "DMN_20"
+    ],
+    "amat": [
+        "AMATe_LR_8_21_2",
+        "AMATe_SR_8_21_2"
+    ],
+    "aroon": [
+        "AROOND_20",
+        "AROONU_20",
+        "AROONOSC_20"
+    ],
+    "chop": [
+        "CHOP_20_1_100"
+    ],
+    "cksp": [
+        "CKSPl_10_3_20",
+        "CKSPs_10_3_20"
+    ],
+    "decreasing": [
+        "DEC_20"
+    ],
+    "dpo": [
+        "DPO_20"
+    ],
+    "increasing": [
+        "INC_20"
+    ],
+    "psar": [
+        "PSARl_0.02_0.2",
+        "PSARs_0.02_0.2",
+        "PSARaf_0.02_0.2",
+        "PSARr_0.02_0.2"
+    ],
+    "qstick": [
+        "QS_20"
+    ],
+    "vortex": [
+        "VTXP_20",
+        "VTXM_20"
+    ],
+    "aberration": [
+        "ABER_ZG_20_15",
+        "ABER_SG_20_15",
+        "ABER_XG_20_15",
+        "ABER_ATR_20_15"
+    ],
+    "accbands": [
+        "ACCBL_20",
+        "ACCBM_20",
+        "ACCBU_20"
+    ],
+    "atr": [
+        "ATRr_20"
+    ],
+    "donchian": [
+        "DCL_20_20",
+        "DCM_20_20",
+        "DCU_20_20"
+    ],
+    "kc": [
+        "KCLe_20_2",
+        "KCBe_20_2",
+        "KCUe_20_2"
+    ],
+    "massi": [
+        "MASSI_9_25"
+    ],
+    "natr": [
+        "NATR_20"
+    ],
+    "pdist": [
+        "PDIST"
+    ],
+    "rvi": [
+        "RVI_20"
+    ],
+    "true_range": [
+        "TRUERANGE_1"
+    ],
+    "ad": [
+        "AD"
+    ],
+    "adosc": [
+        "ADOSC_3_10"
+    ],
+    "aobv": [
+        "OBV",
+        "OBV_min_2",
+        "OBV_max_2",
+        "OBVe_4",
+        "OBVe_12",
+        "AOBV_LR_2",
+        "AOBV_SR_2"
+    ],
+    "cmf": [
+        "CMF_20"
+    ],
+    "efi": [
+        "EFI_20"
+    ],
+    "eom": [
+        "EOM_20_100000000"
+    ],
+    "mfi": [
+        "MFI_20"
+    ],
+    "nvi": [
+        "NVI_20"
+    ],
+    "obv": [
+        "OBV"
+    ],
+    "pvi": [
+        "PVI_20"
+    ],
+    "pvol": [
+        "PVOL"
+    ],
+    "pvt": [
+        "PVT"
+    ],
+    "vp": [
+        "low_close",
+        "mean_close",
+        "high_close",
+        "pos_volume",
+        "neg_volume",
+        "total_volume"
+    ]
+}
