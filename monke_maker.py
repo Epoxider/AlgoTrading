@@ -21,8 +21,8 @@ class Bot():
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
-                {'kind': 'ema', 'length': 60},
-                {'kind': 'ema', 'length': 180},
+                {'kind': 'ema', 'length': 5},
+                {'kind': 'ema', 'length': 13},
             ]
         )
 
@@ -61,7 +61,7 @@ class Bot():
         df = self.symbol_data_dict[symbol] 
         df.ta.strategy(self.strat)
         self.symbol_data_dict[symbol] = df
-        print(symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
+        print(symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5).to_string(index=False)))
         self.ema_check(symbol)
 
     def clear_df_data(self, symbol):
@@ -95,7 +95,7 @@ class Bot():
     # What happens when websocket receives a message from alpaca
     def on_message(self, ws, message):
         message = json.loads(message)
-        print('\nMESSAGE: ' + str(message))
+        #print('\nMESSAGE: ' + str(message))
         if message[0]['T'] == 'b':
             data = {}
             #data['date'] = symbol_data['t']
@@ -125,12 +125,12 @@ class Bot():
 
     def get_position(self, symbol):
         position_response = self.api.get_position(symbol)
-        print('\nPosition quantity response: ' + str(position_response.qty))
+        #print('\nPosition quantity response: ' + str(position_response.qty))
         return position_response
 
     def get_position_list(self):
         position_list_response = self.api.list_positions()
-        print('\nPossition response list: ' + str(position_list_response))
+        #print('\nPossition response list: ' + str(position_list_response))
         return position_list_response
 
     def get_account_info(self):
@@ -155,7 +155,7 @@ class Bot():
 ##################################################################################################
     def ema_check(self, symbol):
         position_list = self.get_position_list()
-        sma_flag = self.symbol_data_dict[symbol]['EMA_60'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_180'].iloc[-1] 
+        sma_flag = self.symbol_data_dict[symbol]['EMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_13'].iloc[-1] 
         print('EMA FLAG: ' + str(sma_flag) + '\n')
         if len(position_list) == 0 and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
