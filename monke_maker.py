@@ -35,10 +35,19 @@ class Bot():
             self.symbol_data_dict[symbol].ta.strategy(self.strat)
 
         '''
+        ################################################################
+        EXAMPLE DATA MANIPULATION AND SHOWING DATA HISTORY AND STRAT DF
+        ################################################################
+
+        # Can use l to ignore default columns in df
+
         l = ['open', 'high', 'low', 'close', 'volume']
+
+        # Read each indicator from indi_cols txt line by line
         with open('indicat_cols.txt', 'r') as f:
             indis = f.read().splitlines()
 
+        # Create a new dataframe with for each indicator
         for count, indi in enumerate(indis):
             #if count > 10: break
             self.strat = ta.Strategy(
@@ -52,21 +61,21 @@ class Bot():
                     #{'kind': 'bbands', 'length': 20},
                 ]
             )
+            # For each symbol, get barset, apply strat, remove cols found in l \
+            # (to just show new cols from pandas ta), write out 
             for symbol in symbol_list:
                 self.symbol_data_dict[symbol] = self.get_barset(symbol)
                 self.symbol_data_dict[symbol].ta.strategy(self.strat)
-                #print(symbol+'\n'+str(self.symbol_data_dict[symbol].tail(5)))
+
                 my_col = set(self.symbol_data_dict[symbol].columns)
-                print('\n'+self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False))
                 [my_col.remove(i) for i in l]
                 print('\n'+self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False))
+
                 with open('ex_cols.txt', 'a') as f:
                     f.write(self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False)+'\n'+'\n')
 
-        # for each symbol get get the barset history
-        
 
-        Exapmle of different strategies you can use. More found in indicator_list.txt 
+        #Example of different strategies you can use. More found in indicator_list.txt 
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
@@ -84,6 +93,10 @@ class Bot():
                 #{'kind': 'sma', 'close': 'volume', 'length': 20, 'prefix': 'VOLUME'}
             ]
         )
+
+        ################################################################
+        END EXAMPLE
+        ################################################################
         '''
 
 
