@@ -8,6 +8,7 @@ class Bot():
         self.symbol_list = symbol_list
         self.timeframe = timeframe
         self.symbol_data_dict = {}   # Keys = symbols, values = strategy datafames
+        self.todays_date = datetime.date.today().strftime('%d_%m_%Y')
 
         with open("keys.json", "r") as f:
             self.key_dict = json.loads(f.readline().strip())
@@ -21,17 +22,50 @@ class Bot():
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
-                {'kind': 'ema', 'length': 5},
                 {'kind': 'ema', 'length': 13},
+                {'kind': 'sma', 'length': 5},
+                {'kind': 'sma', 'length': 13},
+                {'kind': 'macd', 'length': 20},
+                {'kind': 'bbands', 'length': 20},
             ]
         )
 
-        # for each symbol get get the barset history
-        for symbol in symbol_list:
+        for symbol in self.symbol_list:
             self.symbol_data_dict[symbol] = self.get_barset(symbol)
             self.symbol_data_dict[symbol].ta.strategy(self.strat)
 
         '''
+        l = ['open', 'high', 'low', 'close', 'volume']
+        with open('indicat_cols.txt', 'r') as f:
+            indis = f.read().splitlines()
+
+        for count, indi in enumerate(indis):
+            #if count > 10: break
+            self.strat = ta.Strategy(
+                name='betttt',
+                ta = [
+                    {'kind': indi},
+                    #{'kind': 'ema', 'length': 13},
+                    #{'kind': 'sma', 'length': 5},
+                    #{'kind': 'sma', 'length': 13},
+                    #{'kind': 'macd', 'length': 20},
+                    #{'kind': 'bbands', 'length': 20},
+                ]
+            )
+            for symbol in symbol_list:
+                self.symbol_data_dict[symbol] = self.get_barset(symbol)
+                self.symbol_data_dict[symbol].ta.strategy(self.strat)
+                #print(symbol+'\n'+str(self.symbol_data_dict[symbol].tail(5)))
+                my_col = set(self.symbol_data_dict[symbol].columns)
+                print('\n'+self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False))
+                [my_col.remove(i) for i in l]
+                print('\n'+self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False))
+                with open('ex_cols.txt', 'a') as f:
+                    f.write(self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False)+'\n'+'\n')
+
+        # for each symbol get get the barset history
+        
+
         Exapmle of different strategies you can use. More found in indicator_list.txt 
         self.strat = ta.Strategy(
             name='betttt',
@@ -61,7 +95,12 @@ class Bot():
         df = self.symbol_data_dict[symbol] 
         df.ta.strategy(self.strat)
         self.symbol_data_dict[symbol] = df
-        print(symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5).to_string(index=False)))
+        print('\n\n*******************************************************\n\
+            '+ symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
+
+        with open('./Data/'+symbol+'/'+self.todays_date+'.txt', 'a') as f:
+            f.write(self.symbol_data_dict[symbol].tail().to_string(index=False))
+
         self.ema_check(symbol)
 
     def clear_df_data(self, symbol):
@@ -89,13 +128,13 @@ class Bot():
             'secret': self.key_dict['api_secret']
         }
         ws.send(json.dumps(auth_data))
+        print('SEND JSON')
         listen_message = {"action": "subscribe", "bars": self.symbol_list}
         ws.send(json.dumps(listen_message))
 
     # What happens when websocket receives a message from alpaca
     def on_message(self, ws, message):
         message = json.loads(message)
-        #print('\nMESSAGE: ' + str(message))
         if message[0]['T'] == 'b':
             data = {}
             #data['date'] = symbol_data['t']
@@ -154,17 +193,15 @@ class Bot():
 # Indicators
 ##################################################################################################
     def ema_check(self, symbol):
-        position_list = self.get_position_list()
-        sma_flag = self.symbol_data_dict[symbol]['EMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_13'].iloc[-1] 
-        print('EMA FLAG: ' + str(sma_flag) + '\n')
-        if len(position_list) == 0 and sma_flag:
+        position_qty = self.get_position(symbol).qty
+        ema_flag = self.symbol_data_dict[symbol]['EMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_13'].iloc[-1] 
+        print('EMA FLAG: ' + str(ema_flag) + '\nPosition qty: '+str(position_qty)+ '\n')
+        if position_qty == 0 and ema_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.post_order('AAPL', 10, 'buy')
-        elif len(position_list)!= 0 and not sma_flag:
-            position = self.get_position()
-            if position.qty != 0:
-                print("STEPPING INTO SELL CONDITIONAL")
-                self.post_order('AAPL', 10, 'sell')
+        elif position_qty != 0 and not ema_flag:
+            print("STEPPING INTO SELL CONDITIONAL")
+            self.post_order('AAPL', 10, 'sell')
 
     def sma_check(self, symbol):
         position_list = self.get_position_list()
@@ -210,6 +247,7 @@ class Bot():
 
 if __name__ == '__main__':
     freeze_support()
-    symbols = ['GME', 'TSLA', 'AAPL']
+    symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
+    #symbols = ['GME']
     bot = Bot(symbols, 'minute')
     bot.start_stream()
