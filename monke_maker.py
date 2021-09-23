@@ -3,6 +3,7 @@ import alpaca_trade_api as tradeapi
 import pandas_ta as ta
 import pandas as pd
 from multiprocessing import freeze_support
+from pandas_ta import CommonStrategy
 
 pd.set_option('max_column', None)
 
@@ -18,27 +19,28 @@ class Bot():
 
         self.url = 'https://paper-api.alpaca.markets'
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
-        #self.post_order('AAPL', 20, 'sell')
-        #list_r = self.api.list_positions()
-        #pos_r = self.get_position('AAPL')
-        #print(pos_r)
-        #exit()
+
         # Custom strategy from my monke brain
         # Note: This calculates the indicators, NOT when to buy sell
         #       need to calculate buy/sell logic in addition
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
-                {'kind': 'ema', 'length': 5},
-                {'kind': 'ema', 'length': 13},
-                {'kind': 'sma', 'length': 5},
-                {'kind': 'sma', 'length': 13},
+                {'kind': 'sma', 'length': 12},
+                {'kind': 'sma', 'length': 26},
+                {'kind': 'ema', 'length': 12},
+                {'kind': 'ema', 'length': 26},
+                {"kind": "bbands", "length": 20, "col_names": ("BBL", "BBM", "BBU", "BBB", "BBP")},
+                {'kind': 'macd', 'col_names': ('MACD', 'MACDH', 'MACD_S')},
             ]
         )
 
         for symbol in self.symbol_list:
             self.symbol_data_dict[symbol] = self.get_barset(symbol)
             self.symbol_data_dict[symbol].ta.strategy(self.strat)
+            print(self.symbol_data_dict[symbol])
+
+        exit()
 
         '''
         ################################################################
@@ -80,25 +82,6 @@ class Bot():
                 with open('ex_cols.txt', 'a') as f:
                     f.write(self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False)+'\n'+'\n')
 
-
-        #Example of different strategies you can use. More found in indicator_list.txt 
-        self.strat = ta.Strategy(
-            name='betttt',
-            ta = [
-                #{'kind': 'sma', 'length': 5},
-                #{'kind': 'sma', 'length': 13},
-                #{'kind': 'ema', 'length': 60},
-                #{'kind': 'ema', 'length': 180},
-                #{'kind': 'macd', 'length': 20},
-                #{'kind': 'bbands', 'length': 20},
-                #{'kind': 'obv'},
-                #{'kind': 'ad'},
-                #{'kind': 'adx'},
-                #{'kind': 'cci'},
-                #{'kind': 'stoch'},
-                #{'kind': 'sma', 'close': 'volume', 'length': 20, 'prefix': 'VOLUME'}
-            ]
-        )
 
         ################################################################
         END EXAMPLE
@@ -224,10 +207,10 @@ class Bot():
 
         ema_flag = self.symbol_data_dict[symbol]['EMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_13'].iloc[-1] 
         print('\n*****\nEMA FLAG: '+str(ema_flag)+'\n*****\n')
-        if position_qty is None and ema_flag:
+        if position_qty == None and ema_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.post_order(symbol, 10, 'buy')
-        elif position_qty is not None and not ema_flag:
+        elif position_qty != None and not ema_flag:
             print("STEPPING INTO SELL CONDITIONAL")
             self.post_order(symbol, 10, 'sell')
 
@@ -278,6 +261,5 @@ class Bot():
 if __name__ == '__main__':
     freeze_support()
     symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
-    #symbols = ['AAPL']
     bot = Bot(symbols, 'minute')
     bot.start_stream()
