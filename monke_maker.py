@@ -1,7 +1,10 @@
 import websocket, json, datetime
 import alpaca_trade_api as tradeapi
 import pandas_ta as ta
+import pandas as pd
 from multiprocessing import freeze_support
+
+pd.set_option('max_column', None)
 
 class Bot():
     def __init__(self, symbol_list, timeframe):
@@ -15,18 +18,21 @@ class Bot():
 
         self.url = 'https://paper-api.alpaca.markets'
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
-
+        #self.post_order('AAPL', 20, 'sell')
+        #list_r = self.api.list_positions()
+        #pos_r = self.get_position('AAPL')
+        #print(pos_r)
+        #exit()
         # Custom strategy from my monke brain
         # Note: This calculates the indicators, NOT when to buy sell
         #       need to calculate buy/sell logic in addition
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
+                {'kind': 'ema', 'length': 5},
                 {'kind': 'ema', 'length': 13},
                 {'kind': 'sma', 'length': 5},
                 {'kind': 'sma', 'length': 13},
-                {'kind': 'macd', 'length': 20},
-                {'kind': 'bbands', 'length': 20},
             ]
         )
 
@@ -111,10 +117,12 @@ class Bot():
         print('\n\n*******************************************************\n\
             '+ symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
 
-        with open('./Data/'+symbol+'/'+self.todays_date+'.txt', 'a') as f:
-            f.write(self.symbol_data_dict[symbol].tail().to_string(index=False))
+        print('\n\n************************\nALMOST INSIDE EMA CHECK\n******************\n\n')
 
         self.ema_check(symbol)
+
+        with open('./Data/'+symbol+'/'+self.todays_date+'.txt', 'a') as f:
+            f.write(self.symbol_data_dict[symbol].tail().to_string(index=False))
 
     def clear_df_data(self, symbol):
         self.symbol_data_dict[symbol] = None
@@ -176,9 +184,13 @@ class Bot():
         return order_list_response
 
     def get_position(self, symbol):
-        position_response = self.api.get_position(symbol)
-        #print('\nPosition quantity response: ' + str(position_response.qty))
-        return position_response
+        try:
+            response = self.api.get_position(symbol)
+            print('\nPosition quantity response: ' + str(response.qty))
+            return response
+        except Exception as e:
+            print(e)
+            return None
 
     def get_position_list(self):
         position_list_response = self.api.list_positions()
@@ -206,13 +218,20 @@ class Bot():
 # Indicators
 ##################################################################################################
     def ema_check(self, symbol):
-        position_qty = self.get_position(symbol).qty
+        print('\n\n************************\nINSIDE EMA CHECK QTY:\n************************\n')
+        position_response = self.get_position(symbol)
+
+        if position_response is not None:
+            position_qty = position_response.qty
+        else:
+            position_qty = None
+
         ema_flag = self.symbol_data_dict[symbol]['EMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_13'].iloc[-1] 
-        print('EMA FLAG: ' + str(ema_flag) + '\nPosition qty: '+str(position_qty)+ '\n')
-        if position_qty == 0 and ema_flag:
+
+        if position_qty is None and ema_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.post_order('AAPL', 10, 'buy')
-        elif position_qty != 0 and not ema_flag:
+        elif position_qty is not None and not ema_flag:
             print("STEPPING INTO SELL CONDITIONAL")
             self.post_order('AAPL', 10, 'sell')
 
@@ -249,18 +268,18 @@ class Bot():
     def post_order(self, symbol, qty, side):
         print('SUBMITTING ORDER\n')
         order_response = self.api.submit_order(symbol=symbol, qty=qty, side=side, type='market', time_in_force='gtc')
-        print('\nOrder response: ' + order_response)
+        print('\nOrder response: ' + str(order_response))
         return order_response
 
     def cancel_order(self):
         cancel_response = self.api.cancel_all_orders()
-        print('\nCancel response: ' + cancel_response)
+        print('\nCancel response: ' + str(cancel_response))
         return cancel_response
 
 
 if __name__ == '__main__':
     freeze_support()
-    symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
-    #symbols = ['GME']
+    #symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
+    symbols = ['AAPL']
     bot = Bot(symbols, 'minute')
     bot.start_stream()
