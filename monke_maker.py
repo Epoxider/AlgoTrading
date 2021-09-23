@@ -226,10 +226,10 @@ class Bot():
         print('\n*****\nEMA FLAG: '+str(ema_flag)+'\n*****\n')
         if position_qty is None and ema_flag:
             print("STEPPING INTO BUY CONDITIONAL")
-            self.post_order('AAPL', 10, 'buy')
+            self.post_order(symbol, 10, 'buy')
         elif position_qty is not None and not ema_flag:
             print("STEPPING INTO SELL CONDITIONAL")
-            self.post_order('AAPL', 10, 'sell')
+            self.post_order(symbol, 10, 'sell')
 
     def sma_check(self, symbol):
         position_response = self.get_position(symbol)
@@ -241,10 +241,10 @@ class Bot():
         sma_flag = self.symbol_data_dict[symbol]['SMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['SMA_13'].iloc[-1] 
         if position_qty is None and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
-            self.post_order('AAPL', 10, 'buy')
+            self.post_order(symbol, 10, 'buy')
         elif position_qty is not None and not sma_flag:
             print("STEPPING INTO SELL CONDITIONAL")
-            self.post_order('AAPL', 10, 'sell')
+            self.post_order(symbol, 10, 'sell')
 
     def macd_check_buy(self, symbol):
         # MACD buy sign is when macd goes from below the signal column to above
@@ -277,7 +277,7 @@ class Bot():
 
 if __name__ == '__main__':
     freeze_support()
-    #symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
-    symbols = ['AAPL']
+    symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
+    #symbols = ['AAPL']
     bot = Bot(symbols, 'minute')
     bot.start_stream()
