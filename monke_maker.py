@@ -117,8 +117,6 @@ class Bot():
         print('\n\n*******************************************************\n\
             '+ symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
 
-        print('\n\n************************\nALMOST INSIDE EMA CHECK\n******************\n\n')
-
         self.ema_check(symbol)
 
         with open('./Data/'+symbol+'/'+self.todays_date+'.txt', 'a') as f:
@@ -218,16 +216,14 @@ class Bot():
 # Indicators
 ##################################################################################################
     def ema_check(self, symbol):
-        print('\n\n************************\nINSIDE EMA CHECK QTY:\n************************\n')
         position_response = self.get_position(symbol)
-
         if position_response is not None:
             position_qty = position_response.qty
         else:
             position_qty = None
 
         ema_flag = self.symbol_data_dict[symbol]['EMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['EMA_13'].iloc[-1] 
-
+        print('\n*****\nEMA FLAG: '+str(ema_flag)+'\n*****\n')
         if position_qty is None and ema_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.post_order('AAPL', 10, 'buy')
@@ -236,17 +232,19 @@ class Bot():
             self.post_order('AAPL', 10, 'sell')
 
     def sma_check(self, symbol):
-        position_list = self.get_position_list()
+        position_response = self.get_position(symbol)
+        if position_response is not None:
+            position_qty = position_response.qty
+        else:
+            position_qty = None
+
         sma_flag = self.symbol_data_dict[symbol]['SMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['SMA_13'].iloc[-1] 
-        print('SMA FLAG: ' + str(sma_flag))
-        if len(position_list) == 0 and sma_flag:
+        if position_qty is None and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.post_order('AAPL', 10, 'buy')
-        elif len(position_list)!= 0 and not sma_flag:
-            position = self.get_position()
-            if position.qty != 0:
-                print("STEPPING INTO SELL CONDITIONAL")
-                self.post_order('AAPL', 10, 'sell')
+        elif position_qty is not None and not sma_flag:
+            print("STEPPING INTO SELL CONDITIONAL")
+            self.post_order('AAPL', 10, 'sell')
 
     def macd_check_buy(self, symbol):
         # MACD buy sign is when macd goes from below the signal column to above
