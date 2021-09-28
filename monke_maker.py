@@ -11,7 +11,6 @@ class Bot():
     def __init__(self, symbol_list, timeframe):
         self.symbol_list = symbol_list
         self.timeframe = timeframe
-        self.confidence= 0.0
         self.qty_to_order = 10
         self.symbol_data_dict = {}   # Keys = symbols, values = strategy datafames
         self.todays_date = datetime.date.today().strftime('%d_%m_%Y')
@@ -22,86 +21,7 @@ class Bot():
         self.url = 'https://paper-api.alpaca.markets'
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
 
-        # Custom strategy from my monke brain
-        # Note: This calculates the indicators, NOT when to buy sell
-        #       need to calculate buy/sell logic in addition
-        self.strat = ta.Strategy(
-            name='betttt',
-            ta = [
-                {'kind': 'ema', 'length': 12},
-                {'kind': 'ema', 'length': 26},
-                #{"kind": "bbands", "length": 20, "col_names": ("BBL", "BBM", "BBU", "BBB", "BBP")},
-                #{'kind': 'macd', 'col_names': ('MACD', 'MACDH', 'MACD_S')},
-                #{'kind': 'rsi'},
-            ]
-        )
-
-        self.ema_col_small = 'EMA_' + str(12)
-        self.ema_col_big = 'EMA_' + str(26)
-
-
-        for symbol in self.symbol_list:
-            self.symbol_data_dict[symbol] = self.get_barset(symbol)
-            self.symbol_data_dict[symbol].ta.strategy(self.strat)
-            print(symbol+'\n\n'+self.symbol_data_dict[symbol].tail(5).to_string())
-
-
-        '''
-        ################################################################
-        EXAMPLE DATA MANIPULATION AND SHOWING DATA HISTORY AND STRAT DF
-        ################################################################
-
-        if rsi > 70: sell 
-        if rsi < 30: buy
-
-        if macd cross from below to above macd_s: buy else: sell
-
-        if bband mid < bband lower: buy
-        if bband mid > bband high: sell
-
-
-
-
-        # Can use l to ignore default columns in df
-
-        l = ['open', 'high', 'low', 'close', 'volume']
-
-        # Read each indicator from indi_cols txt line by line
-        with open('indicat_cols.txt', 'r') as f:
-            indis = f.read().splitlines()
-
-        # Create a new dataframe with for each indicator
-        for count, indi in enumerate(indis):
-            #if count > 10: break
-            self.strat = ta.Strategy(
-                name='betttt',
-                ta = [
-                    {'kind': indi},
-                    #{'kind': 'ema', 'length': 13},
-                    #{'kind': 'sma', 'length': 5},
-                    #{'kind': 'sma', 'length': 13},
-                    #{'kind': 'macd', 'length': 20},
-                    #{'kind': 'bbands', 'length': 20},
-                ]
-            )
-            # For each symbol, get barset, apply strat, remove cols found in l \
-            # (to just show new cols from pandas ta), write out 
-            for symbol in symbol_list:
-                self.symbol_data_dict[symbol] = self.get_barset(symbol)
-                self.symbol_data_dict[symbol].ta.strategy(self.strat)
-
-                my_col = set(self.symbol_data_dict[symbol].columns)
-                [my_col.remove(i) for i in l]
-                print('\n'+self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False))
-
-                with open('ex_cols.txt', 'a') as f:
-                    f.write(self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False)+'\n'+'\n')
-
-
-        ################################################################
-        END EXAMPLE
-        ################################################################
-        '''
+        self.init_strategy()
 
 
 # DATA MANIUPLATION
@@ -118,6 +38,9 @@ class Bot():
             '+ symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
 
         self.ema_check(symbol)
+        self.rsi_check(symbol)
+        self.macd_check(symbol)
+        self.bbands_check(symbol)
 
         if self.post_order_flag:
             self.post_order(symbol, self.qty_to_order)
@@ -125,17 +48,35 @@ class Bot():
         with open('Stock_Data/'+symbol+'/'+self.todays_date+'.txt', 'a') as f:
             f.write(self.symbol_data_dict[symbol].tail().to_string(index=False))
 
+
+    def init_strategy(self):
+        self.ema_small = 12
+        self.ema_big = 26
+
+        self.strat = ta.Strategy(
+            name='betttt',
+            ta = [
+                {'kind': 'ema', 'length': self.ema_small},
+                {'kind': 'ema', 'length': self.ema_big},
+                {"kind": "bbands", "length": 20, "col_names": ("BBL", "BBM", "BBU", "BBB", "BBP")},
+                {'kind': 'macd', 'col_names': ('MACD', 'MACDH', 'MACD_S')},
+                {'kind': 'rsi'},
+            ]
+        )
+        for symbol in self.symbol_list:
+            self.symbol_data_dict[symbol] = self.get_barset(symbol)
+            self.symbol_data_dict[symbol].ta.strategy(self.strat)
+            #print(symbol+'\n\n'+self.symbol_data_dict[symbol].tail(5).to_string())
+
+
     def clear_df_data(self, symbol):
         self.symbol_data_dict[symbol] = None
+
 
     def check_market_close(self):
         c = self.api.get_clock().is_open
         if c == False:
             exit()
-
-    def ema_values(self, small, big):
-        self.ema_col_small = 'EMA_' + str(small)
-        self.ema_col_big = 'EMA_' + str(big)
 
 
 # WEB SOCKET STREAMING
@@ -144,6 +85,7 @@ class Bot():
         socket = 'wss://stream.data.alpaca.markets/v2/iex'
         ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
         ws.run_forever()
+
 
     # What happens when websocket connection is made
     def on_open(self,ws):
@@ -158,10 +100,12 @@ class Bot():
         listen_message = {"action": "subscribe", "bars": self.symbol_list}
         ws.send(json.dumps(listen_message))
 
+
     # What happens when websocket receives a message from alpaca
     def on_message(self, ws, message):
         message = json.loads(message)
         self.post_order_flag = False
+        self.confidence = None
         if message[0]['T'] == 'b':
             data = {}
             #data['date'] = symbol_data['t']
@@ -172,6 +116,7 @@ class Bot():
             data['volume'] = message[0]['v']
             print(data)
             self.add_data(str(message[0]['S']))
+
 
     # can you guess what his does?
     def on_close(ws):
@@ -185,10 +130,12 @@ class Bot():
         clock_response = self.api.get_clock()
         print('\nCLOCK BOOL:' + str(clock_response.is_open) + '\n')
     
+
     def get_list_of_orders(self):
         order_list_response = self.api.list_orders()
         print('\nOrder list: ' + order_list_response)
         return order_list_response
+    
 
     def get_position(self, symbol):
         try:
@@ -199,6 +146,7 @@ class Bot():
             print(e)
             return None
 
+
     def get_position_list(self):
         position_list_response = self.api.list_positions()
         return position_list_response
@@ -207,6 +155,7 @@ class Bot():
         account_response = self.api.get_account()
         print('\nAccount response: ' + str(account_response))
         return account_response
+
 
     def get_barset(self, symbol):
         # Takes in a symbol and creates the URL to get barset
@@ -235,15 +184,17 @@ class Bot():
         if position_qty == None and ema_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.confidence += 0.5
-            self.post_order_flag = True
         elif position_qty != None and not ema_flag:
             print("STEPPING INTO SELL CONDITIONAL")
             self.confidence -= 0.5
-            self.post_order_flag = True
         
 
     def sma_check(self, symbol):
         position_response = self.get_position(symbol)
+
+        self.sma_col_small = 'SMA_' + str(12)
+        self.sma_col_big = 'SMA_' + str(26)
+
         if position_response is not None:
             position_qty = position_response.qty
         else:
@@ -253,45 +204,39 @@ class Bot():
         if position_qty is None and sma_flag:
             print("STEPPING INTO BUY CONDITIONAL")
             self.confidence += 0.5
-            self.post_order_flag = True
         elif position_qty is not None and not sma_flag:
             print("STEPPING INTO SELL CONDITIONAL")
             self.confidence -= 0.5
-            self.post_order_flag = True
+
 
     def macd_check(self, symbol):
         # MACD buy sign is when macd goes from below the signal column to above
         # the flag is used to see if macd is currently > or < signal
-        macd_flag = False
         for count, row in self.symbol_data_dict[symbol].iterrows():
-            if (macd_flag) == False and (row['MACD_12_26_9'] > row['MACDs_12_26_9']):
+            if (self.symbol_data_dict[symbol]['MACD'] > self.symbol_data_dict[symbol]['MACDS']):
                 print("************\nBUY NOW at count: ", count, '\n************')
                 self.confidence += 0.5
-                self.post_order_flag = True
-            elif (macd_flag == True) and (row['MACD_12_26_9'] < row['MACDs_12_26_9']):
+            elif (self.symbol_data_dict[symbol]['MACD'] < self.symbol_data_dict[symbol]['MACDS']):
                 print("************\nSELL NOW at count: ", count, '\n************')
                 self.confidence -= 0.5
-                self.post_order_flag = True
             else:
                 continue
 
+
     def rsi_check(self, symbol):
         if self.symbol_data_dict[symbol]:
-            if self.symbol_data_dict['RSI_14'] > 70: 
+            if self.symbol_data_dict[symbol]['RSI_14'] > 70: 
                 self.confidence -= 0.5
-                self.post_order_flag = True
-            if self.symbol_data_dict['RSI_14'] < 30: 
+            elif self.symbol_data_dict[symbol]['RSI_14'] < 30: 
                 self.confidence += 0.5
-                self.post_order_flag = True
+
 
     def bbands_check(self, symbol):
-        if self.symbol_data_dict[symbol]:
-            if self.symbol_data_dict['BBM'] > self.symbol_data_dict['BBU']: 
-                self.confidence -= 0.5
-                self.post_order_flag = True
-            if self.symbol_data_dict['BBM'] > self.symbol_data_dict['BBL']: 
-                self.confidence -= 0.5
-                self.post_order_flag = True
+        if self.symbol_data_dict[symbol]['BBM'] > self.symbol_data_dict[symbol]['BBU']: 
+            self.confidence -= 0.5
+        elif self.symbol_data_dict[symbol]['BBM'] < self.symbol_data_dict[symbol]['BBL']: 
+            self.confidence -= 0.5
+
 
 # ORDER FUNCTIONS
 ##################################################################################################
@@ -315,5 +260,66 @@ class Bot():
 if __name__ == '__main__':
     freeze_support()
     symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
-    bot = Bot(symbols, 'minute')
+    bot = Bot(symbols, '1Min')
     bot.start_stream()
+
+
+'''
+################################################################
+EXAMPLE DATA MANIPULATION AND SHOWING DATA HISTORY AND STRAT DF
+################################################################
+
+if rsi > 70: sell 
+if rsi < 30: buy
+
+if macd cross from below to above macd_s: buy else: sell
+
+if bband mid < bband lower: buy
+if bband mid > bband high: sell
+
+
+
+
+# Can use l to ignore default columns in df
+
+l = ['open', 'high', 'low', 'close', 'volume']
+
+# Read each indicator from indi_cols txt line by line
+with open('indicat_cols.txt', 'r') as f:
+    indis = f.read().splitlines()
+
+# Custom strategy from my monke brain
+# Note: This calculates the indicators, NOT when to buy sell
+#       need to calculate buy/sell logic in addition
+# Create a new dataframe with for each indicator
+for count, indi in enumerate(indis):
+    #if count > 10: break
+    self.strat = ta.Strategy(
+        name='betttt',
+        ta = [
+            {'kind': indi},
+            #{'kind': 'ema', 'length': 13},
+            #{'kind': 'sma', 'length': 5},
+            #{'kind': 'sma', 'length': 13},
+            #{'kind': 'macd', 'length': 20},
+            #{'kind': 'bbands', 'length': 20},
+        ]
+    )
+    # For each symbol, get barset, apply strat, remove cols found in l \
+    # (to just show new cols from pandas ta), write out 
+    for symbol in symbol_list:
+        self.symbol_data_dict[symbol] = self.get_barset(symbol)
+        self.symbol_data_dict[symbol].ta.strategy(self.strat)
+
+        my_col = set(self.symbol_data_dict[symbol].columns)
+        [my_col.remove(i) for i in l]
+        print('\n'+self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False))
+
+        with open('ex_cols.txt', 'a') as f:
+            f.write(self.symbol_data_dict[symbol][my_col].tail(5).to_string(index=False)+'\n'+'\n')
+
+
+################################################################
+END EXAMPLE
+################################################################
+'''
