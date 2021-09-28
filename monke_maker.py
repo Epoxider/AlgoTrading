@@ -1,13 +1,10 @@
-import websocket, json, datetime
+import websocket, json, datetime, pytz
 import alpaca_trade_api as tradeapi
 import pandas_ta as ta
-import pandas as pd
-import pytz
 from multiprocessing import freeze_support
 
-pd.set_option('max_column', None)
-
 class Bot():
+
     def __init__(self, symbol_list, timeframe):
         self.symbol_list = symbol_list
         self.timeframe = timeframe
@@ -24,8 +21,8 @@ class Bot():
         self.init_strategy()
 
 
-# DATA MANIUPLATION
-##################################################################################################
+    # DATA MANIUPLATION
+    ##################################################################################################
 
     def add_data(self, symbol):
         print('inside add daata function\n')
@@ -79,8 +76,8 @@ class Bot():
             exit()
 
 
-# WEB SOCKET STREAMING
-##################################################################################################
+    # WEB SOCKET STREAMING
+    ##################################################################################################
     def start_stream(self):
         socket = 'wss://stream.data.alpaca.markets/v2/iex'
         ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
@@ -123,9 +120,8 @@ class Bot():
         print("Closed Connection")
 
 
-
-# GETTERS
-##################################################################################################
+    # GETTERS
+    ##################################################################################################
     def get_clock(self):
         clock_response = self.api.get_clock()
         print('\nCLOCK BOOL:' + str(clock_response.is_open) + '\n')
@@ -170,8 +166,8 @@ class Bot():
         return barset_symbol_data[symbol]
 
 
-# Indicators
-##################################################################################################
+    # Indicators
+    ##################################################################################################
     def ema_check(self, symbol):
         position_response = self.get_position(symbol)
         if position_response is not None:
@@ -238,8 +234,8 @@ class Bot():
             self.confidence -= 0.5
 
 
-# ORDER FUNCTIONS
-##################################################################################################
+    # ORDER FUNCTIONS
+    ##################################################################################################
     def post_order(self, symbol, qty):
         print('SUBMITTING ORDER\n')
         if self.confidence > 0:
