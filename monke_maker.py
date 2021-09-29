@@ -23,36 +23,17 @@ class Bot():
 
     # DATA MANIUPLATION
     ##################################################################################################
-
-    def add_data(self, symbol):
-        print('inside add daata function\n')
-        self.check_market_close()
-        print('after market close')
-        df = self.symbol_data_dict[symbol] 
-        df.ta.strategy(self.strat)
-        self.symbol_data_dict[symbol] = df
-        print('\n\n*******************************************************\n\
-            '+ symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
-
-        self.ema_check(symbol)
-        self.rsi_check(symbol)
-        self.macd_check(symbol)
-        self.bbands_check(symbol)
-
-        if self.post_order_flag:
-            self.post_order(symbol, self.qty_to_order)
-
-        with open('Stock_Data/'+symbol+'/'+self.todays_date+'.txt', 'a') as f:
-            f.write(self.symbol_data_dict[symbol].tail().to_string(index=False))
-
-
     def init_strategy(self):
         self.ema_small = 12
         self.ema_big = 26
+        self.sma_small = 12
+        self.sma_big = 26
 
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
+                {'kind': 'sma', 'length': self.sma_small},
+                {'kind': 'sma', 'length': self.sma_big},
                 {'kind': 'ema', 'length': self.ema_small},
                 {'kind': 'ema', 'length': self.ema_big},
                 {"kind": "bbands", "length": 20, "col_names": ("BBL", "BBM", "BBU", "BBB", "BBP")},
@@ -64,6 +45,37 @@ class Bot():
             self.symbol_data_dict[symbol] = self.get_barset(symbol)
             self.symbol_data_dict[symbol].ta.strategy(self.strat)
             #print(symbol+'\n\n'+self.symbol_data_dict[symbol].tail(5).to_string())
+
+
+    def add_data(self, symbol):
+        print('inside add daata function\n')
+        self.check_market_close()
+        print('after market close')
+        df = self.symbol_data_dict[symbol] 
+        df.ta.strategy(self.strat)
+        self.symbol_data_dict[symbol] = df
+        print('\n\n*******************************************************\n\
+            '+ symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
+
+        print('\n\nPOST ORDER FLAG:'+str(self.post_order_flag)+' \n\n')
+        print('\n\nEMA CHECK\n\n')
+        self.ema_check(symbol)
+        print('\n\nNEW POST ORDER FLAG:'+str(self.post_order_flag)+' \n\n')
+        print('\n\nSMA CHECK\n\n')
+        self.sma_check(symbol)
+        self.rsi_check(symbol)
+        self.macd_check(symbol)
+        self.bbands_check(symbol)
+
+        position_response = self.get_position(symbol)
+
+        if position_response is not None:
+            self.post_order(symbol, self.qty_to_order)
+            #position_qty = position_response.qty
+        else:
+            position_qty = None
+        with open('Stock_Data/'+symbol+'/'+self.todays_date+'.txt', 'a') as f:
+            f.write(self.symbol_data_dict[symbol].tail().to_string(index=False))
 
 
     def clear_df_data(self, symbol):
@@ -147,6 +159,7 @@ class Bot():
         position_list_response = self.api.list_positions()
         return position_list_response
 
+
     def get_account_info(self):
         account_response = self.api.get_account()
         print('\nAccount response: ' + str(account_response))
@@ -157,66 +170,44 @@ class Bot():
         # Takes in a symbol and creates the URL to get barset
         barset_url = 'https://data.alpaca.markets/v2/' + symbol + '/bars'
         barset_api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], barset_url, api_version='v2')
-
         # Need to calculate end date first to correctly subtract time to get start date
         end_date = datetime.datetime.now(pytz.timezone('US/Eastern'))
         start_date = end_date - datetime.timedelta(days=1)
         barset_symbol_data = barset_api.get_barset(symbols=symbol, timeframe=self.timeframe, start=start_date, end=end_date, limit=500).df
-
         return barset_symbol_data[symbol]
 
 
     # Indicators
     ##################################################################################################
     def ema_check(self, symbol):
-        position_response = self.get_position(symbol)
-        if position_response is not None:
-            position_qty = position_response.qty
-        else:
-            position_qty = None
-
-        ema_flag = self.symbol_data_dict[symbol][self.ema_col_small].iloc[-1] > self.symbol_data_dict[symbol][self.ema_col_big].iloc[-1] 
+        ema_col_small = 'SMA_' + str(self.ema_small)
+        ema_col_big = 'SMA_' + str(self.ema_big)
+        ema_flag = self.symbol_data_dict[symbol][ema_col_small].iloc[-1] > self.symbol_data_dict[symbol][ema_col_big].iloc[-1] 
         print('\n*****\nEMA FLAG: '+str(ema_flag)+'\n*****\n')
-        if position_qty == None and ema_flag:
-            print("STEPPING INTO BUY CONDITIONAL")
+        if ema_flag:
             self.confidence += 0.5
-        elif position_qty != None and not ema_flag:
-            print("STEPPING INTO SELL CONDITIONAL")
+        else:
             self.confidence -= 0.5
         
 
     def sma_check(self, symbol):
-        position_response = self.get_position(symbol)
-
-        self.sma_col_small = 'SMA_' + str(12)
-        self.sma_col_big = 'SMA_' + str(26)
-
-        if position_response is not None:
-            position_qty = position_response.qty
-        else:
-            position_qty = None
-
-        sma_flag = self.symbol_data_dict[symbol]['SMA_5'].iloc[-1] > self.symbol_data_dict[symbol]['SMA_13'].iloc[-1] 
-        if position_qty is None and sma_flag:
-            print("STEPPING INTO BUY CONDITIONAL")
+        sma_col_small = 'SMA_' + str(self.sma_small)
+        sma_col_big = 'SMA_' + str(self.sma_big)
+        # if sma small > sma big: add 0.5 else sub 0.5
+        sma_flag = self.symbol_data_dict[symbol][sma_col_small].iloc[-1] > self.symbol_data_dict[symbol][sma_col_big].iloc[-1] 
+        if sma_flag:
             self.confidence += 0.5
-        elif position_qty is not None and not sma_flag:
-            print("STEPPING INTO SELL CONDITIONAL")
+        else:
             self.confidence -= 0.5
 
 
     def macd_check(self, symbol):
         # MACD buy sign is when macd goes from below the signal column to above
         # the flag is used to see if macd is currently > or < signal
-        for count, row in self.symbol_data_dict[symbol].iterrows():
-            if (self.symbol_data_dict[symbol]['MACD'] > self.symbol_data_dict[symbol]['MACDS']):
-                print("************\nBUY NOW at count: ", count, '\n************')
-                self.confidence += 0.5
-            elif (self.symbol_data_dict[symbol]['MACD'] < self.symbol_data_dict[symbol]['MACDS']):
-                print("************\nSELL NOW at count: ", count, '\n************')
-                self.confidence -= 0.5
-            else:
-                continue
+        if (self.symbol_data_dict[symbol]['MACD'] > self.symbol_data_dict[symbol]['MACDS']):
+            self.confidence += 0.5
+        elif (self.symbol_data_dict[symbol]['MACD'] < self.symbol_data_dict[symbol]['MACDS']):
+            self.confidence -= 0.5
 
 
     def rsi_check(self, symbol):
