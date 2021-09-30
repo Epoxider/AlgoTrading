@@ -1,6 +1,7 @@
-import websocket, json, datetime, pytz
+import websocket, json, datetime, pytz, threading
 import alpaca_trade_api as tradeapi
 import pandas_ta as ta
+import matplotlib.pyplot as plt
 from multiprocessing import freeze_support
 
 class Bot():
@@ -9,6 +10,7 @@ class Bot():
         self.symbol_list = symbol_list
         self.timeframe = timeframe
         self.qty_to_order = 10
+        self.confidence = 0
         self.symbol_data_dict = {}   # Keys = symbols, values = strategy datafames
         self.todays_date = datetime.date.today().strftime('%d_%m_%Y')
 
@@ -18,17 +20,18 @@ class Bot():
         self.url = 'https://paper-api.alpaca.markets'
         self.api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], self.url, api_version='v2')
 
-        self.init_strategy()
+        self.setup_strategy()
 
 
     # DATA MANIUPLATION
     ##################################################################################################
-    def init_strategy(self):
+    def setup_strategy(self):
         self.ema_small = 12
         self.ema_big = 26
         self.sma_small = 12
         self.sma_big = 26
 
+        # 5 indicators: sma, ema, bbands, macd, rsi
         self.strat = ta.Strategy(
             name='betttt',
             ta = [
@@ -41,41 +44,61 @@ class Bot():
                 {'kind': 'rsi'},
             ]
         )
+        todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
         for symbol in self.symbol_list:
+            self.confidence = 0
             self.symbol_data_dict[symbol] = self.get_barset(symbol)
             self.symbol_data_dict[symbol].ta.strategy(self.strat)
+
             #print(symbol+'\n\n'+self.symbol_data_dict[symbol].tail(5).to_string())
+            # Just for when market is offline
+            '''
+            self.sma_check(symbol)
+            self.ema_check(symbol)
+            self.macd_check(symbol)
+            self.bbands_check(symbol)
+            self.rsi_check(symbol)
+            print('\n\n'+symbol)
+            self.get_position(symbol)
+            with open('Stock_Data/'+'Test_Writing/'+todays_date+'.txt', 'w+') as f:
+                f.truncate(0)
+                f.write(self.symbol_data_dict[symbol].to_string())
+            '''
 
 
     def add_data(self, symbol):
-        print('inside add daata function\n')
         self.check_market_close()
-        print('after market close')
         df = self.symbol_data_dict[symbol] 
         df.ta.strategy(self.strat)
         self.symbol_data_dict[symbol] = df
         print('\n\n*******************************************************\n\
-            '+ symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5)))
+            '+ symbol + '\n' + str(self.symbol_data_dict[symbol].tail(5).to_string(index=False)))
 
-        print('\n\nPOST ORDER FLAG:'+str(self.post_order_flag)+' \n\n')
-        print('\n\nEMA CHECK\n\n')
-        self.ema_check(symbol)
-        print('\n\nNEW POST ORDER FLAG:'+str(self.post_order_flag)+' \n\n')
-        print('\n\nSMA CHECK\n\n')
         self.sma_check(symbol)
-        self.rsi_check(symbol)
+        self.ema_check(symbol)
         self.macd_check(symbol)
         self.bbands_check(symbol)
+        self.rsi_check(symbol)
 
-        position_response = self.get_position(symbol)
+        if self.confidence != 0:
+            print(self.confidence)
+            post_thrad = threading.Thread(target=self.order_post_checker(symbol, args=[symbol, self.qty_to_order]))
+            post_thrad.start()
 
-        if position_response is not None:
-            self.post_order(symbol, self.qty_to_order)
-            #position_qty = position_response.qty
-        else:
-            position_qty = None
-        with open('Stock_Data/'+symbol+'/'+self.todays_date+'.txt', 'a') as f:
-            f.write(self.symbol_data_dict[symbol].tail().to_string(index=False))
+    def plot_data(self, symbol):
+        closing = self.symbol_data_dict[symbol]['close']
+        bband_upper = self.symbol_data_dict[symbol]['BBU']
+        bband_lower = self.symbol_data_dict[symbol]['BBL']
+
+        dates = self.symbol_data_dict[symbol]
+
+        plt.xticks(rotation=90)
+        plt.plot(bband_upper, 'r--', label='bband_upper')
+        plt.plot(bband_lower, 'g--', label='bband_lower')
+        plt.plot(closing, label='close')
+        plt.legend()
+        plt.show()
+
 
 
     def clear_df_data(self, symbol):
@@ -85,6 +108,10 @@ class Bot():
     def check_market_close(self):
         c = self.api.get_clock().is_open
         if c == False:
+            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
+            for stock in self.symbol_data_dict:
+                with open('Stock_Data/'+str(symbol)+'/'+todays_date+'.txt', 'w') as f:
+                    f.write(self.symbol_data_dict[symbol].to_string())
             exit()
 
 
@@ -114,7 +141,7 @@ class Bot():
     def on_message(self, ws, message):
         message = json.loads(message)
         self.post_order_flag = False
-        self.confidence = None
+        self.confidence = 0
         if message[0]['T'] == 'b':
             data = {}
             #data['date'] = symbol_data['t']
@@ -180,10 +207,10 @@ class Bot():
     # Indicators
     ##################################################################################################
     def ema_check(self, symbol):
-        ema_col_small = 'SMA_' + str(self.ema_small)
-        ema_col_big = 'SMA_' + str(self.ema_big)
+        ema_col_small = 'EMA_' + str(self.ema_small)
+        ema_col_big = 'EMA_' + str(self.ema_big)
         ema_flag = self.symbol_data_dict[symbol][ema_col_small].iloc[-1] > self.symbol_data_dict[symbol][ema_col_big].iloc[-1] 
-        print('\n*****\nEMA FLAG: '+str(ema_flag)+'\n*****\n')
+        print('ema flag: ' + str(ema_flag))
         if ema_flag:
             self.confidence += 0.5
         else:
@@ -195,6 +222,7 @@ class Bot():
         sma_col_big = 'SMA_' + str(self.sma_big)
         # if sma small > sma big: add 0.5 else sub 0.5
         sma_flag = self.symbol_data_dict[symbol][sma_col_small].iloc[-1] > self.symbol_data_dict[symbol][sma_col_big].iloc[-1] 
+        print('sma flag: ' + str(sma_flag))
         if sma_flag:
             self.confidence += 0.5
         else:
@@ -204,39 +232,52 @@ class Bot():
     def macd_check(self, symbol):
         # MACD buy sign is when macd goes from below the signal column to above
         # the flag is used to see if macd is currently > or < signal
-        if (self.symbol_data_dict[symbol]['MACD'] > self.symbol_data_dict[symbol]['MACDS']):
+        macd_flag = self.symbol_data_dict[symbol]['MACD'].iloc[-1] >= self.symbol_data_dict[symbol]['MACD_S'].iloc[-1] 
+        print('macd flag: ' + str(macd_flag))
+        if macd_flag:
             self.confidence += 0.5
-        elif (self.symbol_data_dict[symbol]['MACD'] < self.symbol_data_dict[symbol]['MACDS']):
+        else:
             self.confidence -= 0.5
 
 
     def rsi_check(self, symbol):
-        if self.symbol_data_dict[symbol]:
-            if self.symbol_data_dict[symbol]['RSI_14'] > 70: 
-                self.confidence -= 0.5
-            elif self.symbol_data_dict[symbol]['RSI_14'] < 30: 
-                self.confidence += 0.5
+        if self.symbol_data_dict[symbol]['RSI_14'].iloc[-1] > 70: 
+            self.confidence -= 0.5
+            print('rsi: ' + 'True')
+        elif self.symbol_data_dict[symbol]['RSI_14'].iloc[-1] < 30: 
+            self.confidence += 0.5
+            print('rsi: ' + 'False')
 
 
     def bbands_check(self, symbol):
-        if self.symbol_data_dict[symbol]['BBM'] > self.symbol_data_dict[symbol]['BBU']: 
+        bbands_flag = self.symbol_data_dict[symbol]['BBM'].iloc[-1] >= self.symbol_data_dict[symbol]['BBU'].iloc[-1]
+        print('bbands flag: ' + str(bbands_flag))
+        if bbands_flag: 
             self.confidence -= 0.5
-        elif self.symbol_data_dict[symbol]['BBM'] < self.symbol_data_dict[symbol]['BBL']: 
+        else:
             self.confidence -= 0.5
+
+
+    def order_post_checker(self, symbol):
+        position_response = self.get_position(symbol)
+        print('Position Resposne: ' + str(position_response))
+        if position_response != None:
+            if self.confidence > 1:
+                print('SUBMITTING BUY ORDER\n')
+                order_side = 'buy'
+            elif self.confidence < -1:
+                print('SUBMITTING SELL ORDER\n')
+                order_side = 'sell'
+        self.post_order(symbol, order_side)
+
 
 
     # ORDER FUNCTIONS
     ##################################################################################################
     def post_order(self, symbol, qty):
-        print('SUBMITTING ORDER\n')
-        if self.confidence > 0:
-            side = 'buy'
-        else:
-            side = 'sell'
-
-        order_response = self.api.submit_order(symbol=symbol, qty=qty, side=side, type='market', time_in_force='gtc')
+        order_response = self.api.submit_order(symbol=symbol, qty=self.qty_to_order, side=side, type='market', time_in_force='gtc')
         print('\nOrder response: ' + str(order_response))
-        return order_response
+
 
     def cancel_order(self):
         cancel_response = self.api.cancel_all_orders()
@@ -247,9 +288,9 @@ class Bot():
 if __name__ == '__main__':
     freeze_support()
     symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
+    #symbols = ['GME']
     bot = Bot(symbols, '1Min')
     bot.start_stream()
-
 
 '''
 ################################################################
