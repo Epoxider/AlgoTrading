@@ -264,10 +264,10 @@ class Bot():
         print('Buy if confidence > 1 and there are no positions')
         print('Sell if confidence < -1 and there is a position')
         if position_response != None:
-            if position_response.qty <= 0 and self.confidence > 1:
+            if position_response.qty <= 0 and self.confidence >= 0.5:
                 print('SUBMITTING BUY ORDER\n')
                 order_side = 'buy'
-            elif position_response.qty >= 0 and self.confidence < 1:
+            elif position_response.qty >= 0 and self.confidence <= 0.5:
                 print('SUBMITTING SELL ORDER\n')
                 order_side = 'sell'
             self.post_order(symbol, order_side)
@@ -277,8 +277,6 @@ class Bot():
     # ORDER FUNCTIONS
     ##################################################################################################
     def post_order(self, symbol, side):
-        if self.confidence >= 0.5: side = 'buy'
-        if self.confidence <= -0.5: side = 'sell'
         order_response = self.api.submit_order(symbol=symbol, qty=self.qty_to_order, side=side, type='market', time_in_force='gtc')
         print('\nOrder response: ' + str(order_response))
 
