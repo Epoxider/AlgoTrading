@@ -261,16 +261,15 @@ class Bot():
         position_response = self.get_position(symbol)
         #print('Position Response: ' + str(position_response))
         print('Confidence: ' + str(self.confidence))
-        print('Buy if confidence > 1 and there are no positions')
-        print('Sell if confidence < -1 and there is a position')
-        if position_response != None:
-            if position_response.qty <= 0 and self.confidence >= 0.5:
-                print('SUBMITTING BUY ORDER\n')
-                order_side = 'buy'
-            elif position_response.qty >= 0 and self.confidence <= 0.5:
-                print('SUBMITTING SELL ORDER\n')
-                order_side = 'sell'
-            self.post_order(symbol, order_side)
+        print('Buy if confidence >= 0.5 and there are no positions')
+        print('Sell if confidence < -0.5 and there is a position')
+        if position_response == None and self.confidence >= 0.5:
+            print('SUBMITTING BUY ORDER\n')
+            order_side = 'buy'
+        elif position_response != None and self.confidence <= -0.5 and position_response.qty > 0:
+            print('SUBMITTING SELL ORDER\n')
+            order_side = 'sell'
+        self.post_order(symbol, order_side)
 
 
 
@@ -290,7 +289,6 @@ class Bot():
 if __name__ == '__main__':
     freeze_support()
     symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
-    #symbols = ['GME']
     bot = Bot(symbols, '1Min')
     bot.start_stream()
 
