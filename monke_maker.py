@@ -44,7 +44,7 @@ class Bot():
                 {'kind': 'rsi'},
             ]
         )
-        todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
+
         for symbol in self.symbol_list:
             self.confidence = 0
             self.symbol_data_dict[symbol] = self.get_barset(symbol)
@@ -79,18 +79,13 @@ class Bot():
         self.macd_check(symbol)
         self.bbands_check(symbol)
         self.rsi_check(symbol)
+        self.order_post_checker(symbol)
 
-        if self.confidence != 0:
-            print(self.confidence)
-            post_thrad = threading.Thread(target=self.order_post_checker(symbol, args=[symbol, self.qty_to_order]))
-            post_thrad.start()
 
     def plot_data(self, symbol):
         closing = self.symbol_data_dict[symbol]['close']
         bband_upper = self.symbol_data_dict[symbol]['BBU']
         bband_lower = self.symbol_data_dict[symbol]['BBL']
-
-        dates = self.symbol_data_dict[symbol]
 
         plt.xticks(rotation=90)
         plt.plot(bband_upper, 'r--', label='bband_upper')
@@ -98,7 +93,6 @@ class Bot():
         plt.plot(closing, label='close')
         plt.legend()
         plt.show()
-
 
 
     def clear_df_data(self, symbol):
@@ -110,8 +104,8 @@ class Bot():
         if c == False:
             todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
             for stock in self.symbol_data_dict:
-                with open('Stock_Data/'+str(symbol)+'/'+todays_date+'.txt', 'w') as f:
-                    f.write(self.symbol_data_dict[symbol].to_string())
+                with open('Stock_Data/'+str(stock)+'/'+todays_date+'.txt', 'w') as f:
+                    f.write(self.symbol_data_dict[stock].to_string())
             exit()
 
 
@@ -142,6 +136,7 @@ class Bot():
         message = json.loads(message)
         self.post_order_flag = False
         self.confidence = 0
+        print(message)
         if message[0]['T'] == 'b':
             data = {}
             #data['date'] = symbol_data['t']
@@ -247,34 +242,43 @@ class Bot():
         elif self.symbol_data_dict[symbol]['RSI_14'].iloc[-1] < 30: 
             self.confidence += 0.5
             print('rsi: ' + 'False')
+        else:
+            print('rsi: No change')
 
 
     def bbands_check(self, symbol):
-        bbands_flag = self.symbol_data_dict[symbol]['BBM'].iloc[-1] >= self.symbol_data_dict[symbol]['BBU'].iloc[-1]
-        print('bbands flag: ' + str(bbands_flag))
-        if bbands_flag: 
+        if self.symbol_data_dict[symbol]['BBM'].iloc[-1] <= self.symbol_data_dict[symbol]['BBL'].iloc[-1]:
+            self.confidence += 0.5
+            print('bbands: True')
+        elif self.symbol_data_dict[symbol]['BBM'].iloc[-1] >= self.symbol_data_dict[symbol]['BBU'].iloc[-1]:
             self.confidence -= 0.5
+            print('bbands: False')
         else:
-            self.confidence -= 0.5
+            print('bbands: No change')
 
 
     def order_post_checker(self, symbol):
         position_response = self.get_position(symbol)
-        print('Position Resposne: ' + str(position_response))
+        #print('Position Response: ' + str(position_response))
+        print('Confidence: ' + str(self.confidence))
+        print('Buy if confidence > 1 and there are no positions')
+        print('Sell if confidence < -1 and there is a position')
         if position_response != None:
-            if self.confidence > 1:
+            if position_response.qty <= 0 and self.confidence > 1:
                 print('SUBMITTING BUY ORDER\n')
                 order_side = 'buy'
-            elif self.confidence < -1:
+            elif position_response.qty >= 0 and self.confidence < 1:
                 print('SUBMITTING SELL ORDER\n')
                 order_side = 'sell'
-        self.post_order(symbol, order_side)
+            self.post_order(symbol, order_side)
 
 
 
     # ORDER FUNCTIONS
     ##################################################################################################
-    def post_order(self, symbol, qty):
+    def post_order(self, symbol, side):
+        if self.confidence >= 0.5: side = 'buy'
+        if self.confidence <= -0.5: side = 'sell'
         order_response = self.api.submit_order(symbol=symbol, qty=self.qty_to_order, side=side, type='market', time_in_force='gtc')
         print('\nOrder response: ' + str(order_response))
 
@@ -304,8 +308,6 @@ if macd cross from below to above macd_s: buy else: sell
 
 if bband mid < bband lower: buy
 if bband mid > bband high: sell
-
-
 
 
 # Can use l to ignore default columns in df
