@@ -1,4 +1,4 @@
-import websocket, json, datetime, pytz, threading
+import websocket, json, datetime, pytz
 import alpaca_trade_api as tradeapi
 import pandas_ta as ta
 import matplotlib.pyplot as plt
@@ -170,7 +170,7 @@ class Bot():
     def get_position(self, symbol):
         try:
             response = self.api.get_position(symbol)
-            print('\nPosition quantity response: ' + str(response.qty))
+            print('\nPosition quantity response: ' + response.qty)
             return response
         except Exception as e:
             print(e)
@@ -259,25 +259,24 @@ class Bot():
 
     def order_post_checker(self, symbol):
         position_response = self.get_position(symbol)
-        #print('Position Response: ' + str(position_response))
+        pos_qty = int(position_response.qty)
         print('Confidence: ' + str(self.confidence))
-        print('Buy if confidence >= 0.5 and there are no positions')
-        print('Sell if confidence < -0.5 and there is a position')
-        if position_response == None and self.confidence >= 0.5:
-            print('SUBMITTING BUY ORDER\n')
-            order_side = 'buy'
-        elif position_response != None and self.confidence <= -0.5 and position_response.qty > 0:
-            print('SUBMITTING SELL ORDER\n')
-            order_side = 'sell'
-        self.post_order(symbol, order_side)
-
+        if position_response:
+            if self.confidence < 0: 
+                if pos_qty > 0:
+                    print('SUBMITTING SELL ORDER\n')
+                    self.post_order(symbol, 'sell')
+        else:
+            if self.confidence > 0:
+                print('SUBMITTING BUY ORDER\n')
+                self.post_order(symbol, 'buy')
 
 
     # ORDER FUNCTIONS
     ##################################################################################################
     def post_order(self, symbol, side):
         order_response = self.api.submit_order(symbol=symbol, qty=self.qty_to_order, side=side, type='market', time_in_force='gtc')
-        print('\nOrder response: ' + str(order_response))
+        print('\nOrder response: \n' + str(order_response))
 
 
     def cancel_order(self):
