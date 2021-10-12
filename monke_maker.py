@@ -259,13 +259,18 @@ class Bot():
 
     def order_post_checker(self, symbol):
         position_response = self.get_position(symbol)
-        pos_qty = int(position_response.qty)
         print('Confidence: ' + str(self.confidence))
+        print('POS RESP TYPE: ' + str(type(position_response)))
         if position_response:
+            pos_qty = int(position_response.qty)
             if self.confidence < 0: 
                 if pos_qty > 0:
                     print('SUBMITTING SELL ORDER\n')
                     self.post_order(symbol, 'sell')
+            elif self.confidence > 0:
+                if pos_qty > 0:
+                    print('SUBMITTING BUY ORDER\n')
+                    self.post_order(symbol, 'buy')
         else:
             if self.confidence > 0:
                 print('SUBMITTING BUY ORDER\n')
