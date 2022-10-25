@@ -4,6 +4,7 @@ import pandas_ta as ta
 import matplotlib.pyplot as plt
 from multiprocessing import freeze_support
 from alpaca_trade_api.rest import TimeFrame
+from datetime import date
 
 class Bot():
 
@@ -51,9 +52,11 @@ class Bot():
             self.symbol_data_dict[symbol] = self.get_barset(symbol)
             self.symbol_data_dict[symbol].ta.strategy(self.strat)
 
-            #print(symbol+'\n\n'+self.symbol_data_dict[symbol].tail(5).to_string())
-            # Just for when market is offline
-            '''
+            todays_date = datetime.datetime.now().strftime('%Y-%m-%d')
+
+            print(symbol+'\n\n'+self.symbol_data_dict[symbol].tail(5).to_string())
+            # Below code is just for when market is offline
+            
             self.sma_check(symbol)
             self.ema_check(symbol)
             self.macd_check(symbol)
@@ -61,10 +64,12 @@ class Bot():
             self.rsi_check(symbol)
             print('\n\n'+symbol)
             self.get_position(symbol)
-            with open('Stock_Data/'+'Test_Writing/'+todays_date+'.txt', 'w+') as f:
-                f.truncate(0)
-                f.write(self.symbol_data_dict[symbol].to_string())
-            '''
+
+            fp = open('Stock_Data/'+'Test_Writing/'+ symbol + '_' + todays_date+'.txt', 'a')
+            fp.truncate(0)
+            fp.write(self.symbol_data_dict[symbol].to_string())
+            fp.close()
+            
 
 
     def add_data(self, symbol):
@@ -115,7 +120,6 @@ class Bot():
     def start_stream(self):
         socket = 'wss://stream.data.alpaca.markets/v2/iex'
         ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
-        print('YEP')
         ws.run_forever()
 
 
@@ -197,10 +201,12 @@ class Bot():
         # Need to calculate end date first to correctly subtract time to get start date
 
         end_date = datetime.datetime.now(datetime.timezone.utc)
-        start_date = end_date - datetime.timedelta(days=1)
 
-        barset_symbol_data = barset_api.get_bars(symbol=symbol, timeframe=TimeFrame.Minute, start=start_date.isoformat(), end=end_date.isoformat(), limit=500).df
-        return barset_symbol_data[symbol]
+        end_date = end_date - datetime.timedelta(minutes=15)
+        start_date = end_date - datetime.timedelta(days=5)
+
+        barset_symbol_data = barset_api.get_bars(symbol=symbol, timeframe=self.timeframe, start=start_date.isoformat(), end=end_date.isoformat(), limit=500).df
+        return barset_symbol_data
 
 
     # Indicators
@@ -298,7 +304,7 @@ if __name__ == '__main__':
     freeze_support()
     #symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
     symbols = ['GME']
-    bot = Bot(symbols, '1Min')
+    bot = Bot(symbols, TimeFrame.Minute)
     bot.start_stream()
 
 '''
