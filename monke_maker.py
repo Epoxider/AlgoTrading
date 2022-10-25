@@ -3,6 +3,7 @@ import alpaca_trade_api as tradeapi
 import pandas_ta as ta
 import matplotlib.pyplot as plt
 from multiprocessing import freeze_support
+from alpaca_trade_api.rest import TimeFrame
 
 class Bot():
 
@@ -114,6 +115,7 @@ class Bot():
     def start_stream(self):
         socket = 'wss://stream.data.alpaca.markets/v2/iex'
         ws = websocket.WebSocketApp(socket, on_open=self.on_open, on_message=self.on_message, on_close=self.on_close)
+        print('YEP')
         ws.run_forever()
 
 
@@ -193,9 +195,11 @@ class Bot():
         barset_url = 'https://data.alpaca.markets/v2/' + symbol + '/bars'
         barset_api = tradeapi.REST(self.key_dict['api_key_id'], self.key_dict['api_secret'], barset_url, api_version='v2')
         # Need to calculate end date first to correctly subtract time to get start date
-        end_date = datetime.datetime.now(pytz.timezone('US/Eastern'))
+
+        end_date = datetime.datetime.now(datetime.timezone.utc)
         start_date = end_date - datetime.timedelta(days=1)
-        barset_symbol_data = barset_api.get_barset(symbols=symbol, timeframe=self.timeframe, start=start_date, end=end_date, limit=500).df
+
+        barset_symbol_data = barset_api.get_bars(symbol=symbol, timeframe=TimeFrame.Minute, start=start_date.isoformat(), end=end_date.isoformat(), limit=500).df
         return barset_symbol_data[symbol]
 
 
@@ -292,7 +296,8 @@ class Bot():
 
 if __name__ == '__main__':
     freeze_support()
-    symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
+    #symbols = ['GME', 'TSLA', 'AAPL', 'AMZN', 'MSFT']
+    symbols = ['GME']
     bot = Bot(symbols, '1Min')
     bot.start_stream()
 
